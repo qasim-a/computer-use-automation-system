@@ -52,6 +52,8 @@ test("requests and validates one structured Claude action", async () => {
   const action = await provider.decide(context);
   assert.equal(action.action, "navigate");
   assert.equal(requests[0]?.model, "claude-sonnet-5");
+  assert.doesNotMatch(String(requests[0]?.system), /member_id|current_balance|Savings account/);
+  assert.match(String(requests[0]?.system), /availableInputs|declaredOutputs/);
   assert.deepEqual(provider.usage(), { requests: 1, inputTokens: 800, outputTokens: 40 });
 });
 

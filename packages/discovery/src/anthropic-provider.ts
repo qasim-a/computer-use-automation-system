@@ -137,12 +137,12 @@ Use only controls supported by the observation. Prefer role, label, and visible-
 Use fixed, ordered locator fallbacks and require unique matches. Never invent test IDs.
 When an observed dataFields entry matches an output, use its exact selector for extraction.
 Every role locator must include a role such as button, link, heading, or table.
-For this capability, navigate with \${target.entrypoint}, fill the member value with \${inputs.member_id},
-and extract the result into current_balance. Finish only after the balance is visible and extracted.
-The finish success condition must target the Savings account table with a visible checkpoint.
+Navigate to the declared application with \${target.entrypoint}. For runtime values, use an exact
+\${inputs.input_name} placeholder from availableInputs rather than copying the observed value.
+Extract results only into names from declaredOutputs. Choose finish only after every declared output
+appears in completedOutputs, and use a checkpoint that independently proves the goal is complete.
 If a prior action or completion was rejected, use its error to correct the next action.
 Never navigate when the current URL is already the target application. Never repeat a completed output.
-When every declared output is completed, choose finish on the next turn.
 Return snake_case IDs and a 10000ms timeout for every recorded step.`;
 
 function observationPrompt(context: DecisionContext, limit: number): string {
