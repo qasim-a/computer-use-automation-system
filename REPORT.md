@@ -26,7 +26,7 @@ Replay validates the artifact and invocation before touching the UI. It then exe
 
 The result contract separates `success`, `business_outcome`, and `failure`. A missing member is detected through a declared checkpoint and returned as `business_outcome/member_not_found`; it short-circuits retries because repeating a legitimate result cannot help. A transient host error is recoverable because the search step has a fixed two-attempt budget. The retry repeats the same recorded action after a fixed delay—it does not ask Claude to improvise.
 
-Anything not declared as an outcome or recovered inside its budget becomes a hard failure. The result includes the failing step and observed error, the structured event stream records every attempt, and a file-backed observer captures a failure screenshot. The comparison matrix replays both artifacts against two valid members, not-found, and a transient host error; this makes the difference between discovered mechanics and production policy concrete rather than theoretical.
+Anything not declared as an outcome or recovered inside its budget becomes a hard failure. Stable codes distinguish locator, checkpoint, timeout, output, policy, and other action failures; the result also includes the failing step and expected/observed details when available. The structured event stream records every attempt, and a file-backed observer captures a failure screenshot. The comparison matrix replays both artifacts against two valid members, not-found, and a transient host error; this makes the difference between discovered mechanics and production policy concrete rather than theoretical.
 
 ## 4. Heterogeneity & multi-tenant
 

@@ -96,7 +96,10 @@ test("fails replay when extracted text violates the output contract", async () =
     assert.equal(result.status, "failure");
     if (result.status === "failure") {
       assert.equal(result.error.stepId, "read_balance");
+      assert.equal(result.error.code, "output_invalid");
       assert.match(result.error.message, /declared pattern/);
+      assert.equal(result.error.expected, "^\\$[0-9,]+\\.[0-9]{2}$");
+      assert.equal(result.error.observed, "Current Balance");
     }
   } finally {
     await surface.close();
@@ -115,8 +118,29 @@ test("policy rejection prevents replay from performing the navigation", async ()
   externalArtifact.capability.target.entrypoint = "https://example.com/members";
   const result = await new ReplayEngine(inertSurface).run(externalArtifact, { member_id: "12345" });
   assert.equal(result.status, "failure");
-  if (result.status === "failure") assert.match(result.error.message, /Origin is not allowed/);
+  if (result.status === "failure") {
+    assert.equal(result.error.code, "policy_denied");
+    assert.match(result.error.message, /Origin is not allowed/);
+  }
   assert.equal(navigations, 0);
+});
+
+test("classifies unresolved locators separately from other hard failures", async () => {
+  const missingTargetArtifact = structuredClone(artifact);
+  missingTargetArtifact.steps.at(-1).timeoutMs = 100;
+  missingTargetArtifact.steps.at(-1).target.locators = [{ strategy: "css", value: "[data-field=missing]", exact: true }];
+  const surface = await PlaywrightWebSurface.launch();
+  try {
+    const result = await new ReplayEngine(surface).run(missingTargetArtifact, { member_id: "12345" });
+    assert.equal(result.status, "failure");
+    if (result.status === "failure") {
+      assert.equal(result.error.code, "locator_failed");
+      assert.equal(result.error.expected, "Current balance");
+      assert.match(result.error.observed ?? "", /data-field=missing/);
+    }
+  } finally {
+    await surface.close();
+  }
 });
 
 test("returns member-not-found as a business outcome rather than a crash", async () => {

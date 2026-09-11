@@ -6,8 +6,8 @@ import {
   type CapabilityStep,
   type ReplayResult
 } from "../../contracts/src/index.js";
-import type { Surface } from "../../surface/src/index.js";
-import { ActionPolicy } from "../../policy/src/index.js";
+import { TargetResolutionError, type Surface } from "../../surface/src/index.js";
+import { ActionPolicy, PolicyViolationError } from "../../policy/src/index.js";
 import type { HandoffController } from "../../handoff/src/index.js";
 import { NoopRunObserver, type RunObserver } from "../../observability/src/index.js";
 
@@ -79,12 +79,16 @@ export class ReplayEngine {
         outputs
       });
     } catch (error) {
+      const classified = classifyFailure(error);
       const screenshot = await this.observer.captureFailure(this.surface, runId, activeStep?.id);
       await this.observer.record({
         runId, phase: "replay", type: "run_failed", ...(activeStep?.id ? { stepId: activeStep.id } : {}),
-        details: { code: "step_failed", message: messageOf(error), ...(screenshot ? { screenshot } : {}) }
+        details: { ...classified, ...(screenshot ? { screenshot } : {}) }
       });
-      return this.failure(runId, "step_failed", messageOf(error), startedAt, artifact, error, activeStep?.id, screenshot);
+      return this.failure(
+        runId, classified.code, classified.message, startedAt, artifact, undefined,
+        activeStep?.id, screenshot, classified.expected, classified.observed
+      );
     }
   }
 
@@ -184,10 +188,12 @@ export class ReplayEngine {
         {
           const value = await this.surface.extractText(step.target, timeoutMs);
           const declaration = artifact.contract.outputs.find((output) => output.name === step.output);
-          if (!declaration) throw new Error(`Output ${step.output} is not declared`);
-          if (typeof value !== declaration.type) throw new Error(`Output ${step.output} must be ${declaration.type}`);
+          if (!declaration) throw new ExecutionError("output_invalid", `Output ${step.output} is not declared`);
+          if (typeof value !== declaration.type) {
+            throw new ExecutionError("output_invalid", `Output ${step.output} must be ${declaration.type}`, declaration.type, typeof value);
+          }
           if (declaration.pattern && !new RegExp(declaration.pattern).test(String(value))) {
-            throw new Error(`Output ${step.output} did not match its declared pattern`);
+            throw new ExecutionError("output_invalid", `Output ${step.output} did not match its declared pattern`, declaration.pattern, String(value));
           }
           outputs[step.output] = value;
         }
@@ -208,18 +214,20 @@ export class ReplayEngine {
     if (checkpoint.kind === "url") {
       const observation = await this.surface.observe();
       const expected = bind(checkpoint.matches, artifact, inputs);
-      if (!new RegExp(expected).test(observation.url)) throw new Error(`URL checkpoint failed: expected ${expected}, observed ${observation.url}`);
+      if (!new RegExp(expected).test(observation.url)) {
+        throw new ExecutionError("checkpoint_failed", "URL checkpoint failed", expected, observation.url);
+      }
       return;
     }
     if (checkpoint.kind === "visible") {
       if (!await this.surface.isVisible(checkpoint.target, timeoutMs)) {
-        throw new Error(`Visibility checkpoint failed: ${checkpoint.target.description} is not visible`);
+        throw new ExecutionError("checkpoint_failed", `Visibility checkpoint failed: ${checkpoint.target.description}`, "visible", "not visible");
       }
       return;
     }
     const text = await this.surface.extractText(checkpoint.target, timeoutMs);
     if (checkpoint.kind === "text" && !new RegExp(bind(checkpoint.matches, artifact, inputs)).test(text)) {
-      throw new Error(`Text checkpoint failed: expected ${checkpoint.matches}, observed ${text}`);
+      throw new ExecutionError("checkpoint_failed", "Text checkpoint failed", bind(checkpoint.matches, artifact, inputs), text);
     }
   }
 
@@ -231,7 +239,9 @@ export class ReplayEngine {
     artifact?: CapabilityArtifact,
     error?: unknown,
     stepId?: string,
-    screenshot?: string
+    screenshot?: string,
+    expected?: string,
+    observed?: string
   ): ReplayResult {
     return replayResultSchema.parse({
       runId,
@@ -243,7 +253,8 @@ export class ReplayEngine {
         code,
         message,
         ...(stepId ? { stepId } : {}),
-        ...(error ? { observed: messageOf(error) } : {}),
+        ...(expected ? { expected } : {}),
+        ...(observed ? { observed } : error ? { observed: messageOf(error) } : {}),
         evidence: screenshot ? [screenshot] : []
       }
     });
@@ -272,11 +283,13 @@ function validateInputs(artifact: CapabilityArtifact, inputs: Record<string, unk
 
 function validateOutputs(artifact: CapabilityArtifact, outputs: Record<string, unknown>): void {
   for (const declaration of artifact.contract.outputs) {
-    if (!(declaration.name in outputs)) throw new Error(`Required output ${declaration.name} was not produced`);
+    if (!(declaration.name in outputs)) throw new ExecutionError("output_missing", `Required output ${declaration.name} was not produced`);
     const value = outputs[declaration.name];
-    if (typeof value !== declaration.type) throw new Error(`Output ${declaration.name} must be ${declaration.type}`);
+    if (typeof value !== declaration.type) {
+      throw new ExecutionError("output_invalid", `Output ${declaration.name} must be ${declaration.type}`, declaration.type, typeof value);
+    }
     if (declaration.pattern && !new RegExp(declaration.pattern).test(String(value))) {
-      throw new Error(`Output ${declaration.name} did not match its declared pattern`);
+      throw new ExecutionError("output_invalid", `Output ${declaration.name} did not match its declared pattern`, declaration.pattern, String(value));
     }
   }
 }
@@ -291,6 +304,39 @@ function delay(milliseconds: number): Promise<void> {
 
 function remaining(deadline: number): number {
   const milliseconds = deadline - Date.now();
-  if (milliseconds <= 0) throw new Error("Step timeout exhausted");
+  if (milliseconds <= 0) throw new ExecutionError("timeout", "Step timeout exhausted");
   return milliseconds;
+}
+
+type FailureDetails = { code: string; message: string; expected?: string; observed?: string };
+
+class ExecutionError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly expected?: string,
+    readonly observed?: string
+  ) {
+    super(message);
+    this.name = "ExecutionError";
+  }
+}
+
+function classifyFailure(error: unknown): FailureDetails {
+  if (error instanceof ExecutionError) {
+    return { code: error.code, message: error.message, ...(error.expected ? { expected: error.expected } : {}), ...(error.observed ? { observed: error.observed } : {}) };
+  }
+  if (error instanceof TargetResolutionError) {
+    return {
+      code: "locator_failed",
+      message: error.message,
+      expected: error.target.description,
+      observed: JSON.stringify(error.attempts)
+    };
+  }
+  if (error instanceof PolicyViolationError) return { code: "policy_denied", message: error.message };
+  if (error instanceof Error && (error.name === "TimeoutError" || /timed?\s*out|timeout/i.test(error.message))) {
+    return { code: "timeout", message: error.message };
+  }
+  return { code: "action_failed", message: messageOf(error) };
 }
