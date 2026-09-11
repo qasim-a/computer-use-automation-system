@@ -5,6 +5,7 @@ import { after, before, test } from "node:test";
 import { startTargetServer } from "../apps/target/src/server.js";
 import { ReplayEngine } from "../packages/replay/src/index.js";
 import { PlaywrightWebSurface } from "../packages/surface/src/index.js";
+import type { Surface } from "../packages/surface/src/index.js";
 
 let server: Server;
 let origin: string;
@@ -58,4 +59,19 @@ test("fails replay when extracted text violates the output contract", async () =
   } finally {
     await surface.close();
   }
+});
+
+test("policy rejection prevents replay from performing the navigation", async () => {
+  let navigations = 0;
+  const inertSurface: Surface = {
+    navigate: async () => { navigations += 1; },
+    observe: async () => ({ url: "about:blank", title: "", visibleText: "", controls: [], dataFields: [] }),
+    click: async () => {}, fill: async () => {}, extractText: async () => "", screenshot: async () => {}, close: async () => {}
+  };
+  const externalArtifact = structuredClone(artifact);
+  externalArtifact.capability.target.entrypoint = "https://example.com/members";
+  const result = await new ReplayEngine(inertSurface).run(externalArtifact, { member_id: "12345" });
+  assert.equal(result.status, "failure");
+  if (result.status === "failure") assert.match(result.error.message, /Origin is not allowed/);
+  assert.equal(navigations, 0);
 });

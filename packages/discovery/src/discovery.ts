@@ -9,6 +9,7 @@ import {
   type ControlTarget
 } from "../../contracts/src/index.js";
 import type { Surface, SurfaceObservation } from "../../surface/src/index.js";
+import { ActionPolicy } from "../../policy/src/index.js";
 
 type Checkpoint = NonNullable<CapabilityStep["checkpoint"]>;
 
@@ -65,7 +66,11 @@ export class DiscoveryStoppedError extends Error {
 }
 
 export class DiscoveryRunner {
-  constructor(private readonly surface: Surface, private readonly decisions: DecisionProvider) {}
+  constructor(
+    private readonly surface: Surface,
+    private readonly decisions: DecisionProvider,
+    private readonly policy = ActionPolicy.localDevelopment()
+  ) {}
 
   async run(request: DiscoveryRequest): Promise<DiscoveryResult> {
     const runId = randomUUID();
@@ -109,6 +114,9 @@ export class DiscoveryRunner {
 
       try {
         validateRecordedAction(action, request, recordedSteps);
+        const currentUrl = (await this.surface.observe()).url;
+        const navigationUrl = action.action === "navigate" ? bind(action.url, request) : undefined;
+        await this.policy.authorize(action, currentUrl, navigationUrl);
         await executeAction(this.surface, action, request, outputs);
         if (action.checkpoint) await verifyCheckpoint(this.surface, action.checkpoint);
         recordedSteps.push(action);

@@ -37,6 +37,7 @@ export const checkpointSchema = z.discriminatedUnion("kind", [
 const commonStep = {
   id: identifier,
   description: z.string().min(1),
+  risk: z.enum(["read_only", "reversible", "irreversible"]).optional(),
   timeoutMs: z.number().int().positive().max(60_000).default(10_000),
   checkpoint: checkpointSchema.optional()
 };

@@ -10,6 +10,8 @@ Copy `.env.example` to `.env` and provide an Anthropic API key only when running
 
 Run `npm run evidence:live` to perform one bounded Claude discovery and a model-free replay. Redacted logs, the generated artifact, token usage, and final screenshots are written under `evidence/live-run/`.
 
+Every discovery and replay action passes through a declarative policy that allowlists action types, origins, and routes. Steps are classified as read-only, reversible, or irreversible; the irreversible class cannot run without an explicit approval provider.
+
 ## Run locally
 
 ```bash

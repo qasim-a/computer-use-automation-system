@@ -40,6 +40,7 @@ const decisionTool = {
       value: { type: "string" },
       output: { type: "string" },
       timeoutMs: { type: "integer", minimum: 1, maximum: 60000 },
+      risk: { enum: ["read_only", "reversible", "irreversible"] },
       target: { "$ref": "#/definitions/target" },
       checkpoint: { "$ref": "#/definitions/checkpoint" },
       for: { "$ref": "#/definitions/checkpoint" },

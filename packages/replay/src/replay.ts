@@ -7,9 +7,10 @@ import {
   type ReplayResult
 } from "../../contracts/src/index.js";
 import type { Surface } from "../../surface/src/index.js";
+import { ActionPolicy } from "../../policy/src/index.js";
 
 export class ReplayEngine {
-  constructor(private readonly surface: Surface) {}
+  constructor(private readonly surface: Surface, private readonly policy = ActionPolicy.localDevelopment()) {}
 
   async run(untrustedArtifact: unknown, inputs: Record<string, unknown>): Promise<ReplayResult> {
     const startedAt = performance.now();
@@ -31,6 +32,9 @@ export class ReplayEngine {
     try {
       for (const step of artifact.steps) {
         activeStep = step;
+        const currentUrl = (await this.surface.observe()).url;
+        const navigationUrl = step.action === "navigate" ? bind(step.url, artifact, inputs) : undefined;
+        await this.policy.authorize(step, currentUrl, navigationUrl);
         await this.execute(step, artifact, inputs, outputs);
         if (step.checkpoint) await this.verify(step.checkpoint, artifact, inputs);
       }
