@@ -42,7 +42,12 @@ const request = () => ({
   },
   contract: {
     inputs: [{ name: "member_id" as const, type: "string" as const, description: "Member number", required: true, sensitive: true }],
-    outputs: [{ name: "current_balance" as const, type: "string" as const, description: "Displayed savings balance" }]
+    outputs: [{
+      name: "current_balance" as const,
+      type: "string" as const,
+      description: "Displayed savings balance",
+      pattern: "^\\$[0-9,]+\\.[0-9]{2}$"
+    }]
   },
   inputs: { member_id: "12345" }
 });
@@ -76,6 +81,39 @@ test("stops a discovery loop at its configured step limit", async () => {
       new DiscoveryRunner(surface, new ScriptedDecisionProvider(actions)).run({ ...request(), maxSteps: 2 }),
       (error) => error instanceof DiscoveryStoppedError && error.turns.length === 2
     );
+  } finally {
+    await surface.close();
+  }
+});
+
+test("continues after rejecting an invalid completion claim", async () => {
+  const surface = await PlaywrightWebSurface.launch();
+  const actionsWithBadFinish = [
+    ...actions.slice(0, -1),
+    {
+      action: "finish" as const,
+      description: "Incorrectly claim completion",
+      success: { kind: "text" as const, target: targets.balance, matches: "not-the-balance" }
+    },
+    actions.at(-1)!
+  ];
+  try {
+    const result = await new DiscoveryRunner(surface, new ScriptedDecisionProvider(actionsWithBadFinish)).run({ ...request(), maxSteps: 8 });
+    assert.match(result.turns[5]?.error ?? "", /Completion rejected/);
+    assert.equal(result.artifact.success.kind, "visible");
+  } finally {
+    await surface.close();
+  }
+});
+
+test("rejects literal runtime inputs before recording them", async () => {
+  const surface = await PlaywrightWebSurface.launch();
+  const literalFill = { ...actions[1]!, value: "12345" } as DiscoveryAction;
+  const actionsWithCorrection = [actions[0]!, literalFill, ...actions.slice(1)];
+  try {
+    const result = await new DiscoveryRunner(surface, new ScriptedDecisionProvider(actionsWithCorrection)).run({ ...request(), maxSteps: 8 });
+    assert.match(result.turns[1]?.error ?? "", /must be recorded as/);
+    assert.doesNotMatch(JSON.stringify(result.artifact), /12345/);
   } finally {
     await surface.close();
   }

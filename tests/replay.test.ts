@@ -43,3 +43,19 @@ test("rejects invalid invocation inputs before touching the surface", async () =
     await surface.close();
   }
 });
+
+test("fails replay when extracted text violates the output contract", async () => {
+  const invalidExtraction = structuredClone(artifact);
+  invalidExtraction.steps.at(-1).target.locators = [{ strategy: "text", value: "Current Balance", exact: true }];
+  const surface = await PlaywrightWebSurface.launch();
+  try {
+    const result = await new ReplayEngine(surface).run(invalidExtraction, { member_id: "12345" });
+    assert.equal(result.status, "failure");
+    if (result.status === "failure") {
+      assert.equal(result.error.stepId, "read_balance");
+      assert.match(result.error.message, /declared pattern/);
+    }
+  } finally {
+    await surface.close();
+  }
+});

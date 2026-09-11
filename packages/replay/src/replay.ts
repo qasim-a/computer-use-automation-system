@@ -65,7 +65,16 @@ export class ReplayEngine {
         await this.surface.fill(step.target, bind(step.value, artifact, inputs));
         break;
       case "extract":
-        outputs[step.output] = await this.surface.extractText(step.target);
+        {
+          const value = await this.surface.extractText(step.target);
+          const declaration = artifact.contract.outputs.find((output) => output.name === step.output);
+          if (!declaration) throw new Error(`Output ${step.output} is not declared`);
+          if (typeof value !== declaration.type) throw new Error(`Output ${step.output} must be ${declaration.type}`);
+          if (declaration.pattern && !new RegExp(declaration.pattern).test(String(value))) {
+            throw new Error(`Output ${step.output} did not match its declared pattern`);
+          }
+          outputs[step.output] = value;
+        }
         break;
       case "wait":
         await this.verify(step.for, artifact, inputs);

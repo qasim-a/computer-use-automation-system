@@ -45,6 +45,9 @@ test("surface observes and completes the member balance workflow", async () => {
       requireUnique: true
     });
     assert.equal(balance, "$4,281.36");
+    assert.deepEqual((await surface.observe()).dataFields, [{
+      name: "current-balance", text: "$4,281.36", selector: "[data-field=\"current-balance\"]"
+    }]);
   } finally {
     await surface.close();
   }

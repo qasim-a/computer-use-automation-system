@@ -48,14 +48,27 @@ const decisionTool = {
     required: ["action", "description"],
     definitions: {
       locator: {
-        type: "object",
-        properties: {
-          strategy: { enum: ["role", "label", "text", "css"] },
-          value: { type: "string" },
-          role: { type: "string" },
-          exact: { type: "boolean" }
-        },
-        required: ["strategy", "value", "exact"]
+        oneOf: [
+          {
+            type: "object",
+            properties: {
+              strategy: { const: "role" },
+              value: { type: "string" },
+              role: { type: "string", description: "Required accessibility role, such as button, link, heading, or table" },
+              exact: { type: "boolean" }
+            },
+            required: ["strategy", "value", "role", "exact"]
+          },
+          {
+            type: "object",
+            properties: {
+              strategy: { enum: ["label", "text", "css"] },
+              value: { type: "string" },
+              exact: { type: "boolean" }
+            },
+            required: ["strategy", "value", "exact"]
+          }
+        ]
       },
       target: {
         type: "object",
@@ -121,17 +134,32 @@ export class AnthropicDecisionProvider implements DecisionProvider {
 const systemPrompt = `You discover reusable UI capabilities. Choose one action per turn.
 Use only controls supported by the observation. Prefer role, label, and visible-text locators over CSS.
 Use fixed, ordered locator fallbacks and require unique matches. Never invent test IDs.
+When an observed dataFields entry matches an output, use its exact selector for extraction.
+Every role locator must include a role such as button, link, heading, or table.
 For this capability, navigate with \${target.entrypoint}, fill the member value with \${inputs.member_id},
 and extract the result into current_balance. Finish only after the balance is visible and extracted.
+The finish success condition must target the Savings account table with a visible checkpoint.
+If a prior action or completion was rejected, use its error to correct the next action.
+Never navigate when the current URL is already the target application. Never repeat a completed output.
+When every declared output is completed, choose finish on the next turn.
 Return snake_case IDs and a 10000ms timeout for every recorded step.`;
 
 function observationPrompt(context: DecisionContext, limit: number): string {
-  const priorActions = context.history.map((turn) => ({ step: turn.step, action: turn.action.action }));
+  const priorActions = context.history.map((turn) => ({ step: turn.step, action: turn.action, error: turn.error }));
   const observation = {
     url: context.observation.url,
     title: context.observation.title,
     visibleText: context.observation.visibleText.slice(0, limit),
-    controls: context.observation.controls
+    controls: context.observation.controls,
+    dataFields: context.observation.dataFields
   };
-  return JSON.stringify({ goal: context.goal, step: context.step, priorActions, observation });
+  return JSON.stringify({
+    goal: context.goal,
+    step: context.step,
+    availableInputs: context.availableInputs,
+    declaredOutputs: context.declaredOutputs,
+    completedOutputs: context.completedOutputs,
+    priorActions,
+    observation
+  });
 }

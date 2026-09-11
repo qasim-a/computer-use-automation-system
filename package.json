@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev:target": "tsx apps/target/src/server.ts",
+    "evidence:live": "tsx scripts/generate-live-evidence.ts",
     "test": "tsx --test tests/**/*.test.ts",
     "typecheck": "tsc --noEmit"
   },

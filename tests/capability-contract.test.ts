@@ -12,7 +12,7 @@ const artifact = {
   },
   contract: {
     inputs: [{ name: "member_id", type: "string", description: "Member number", required: true, sensitive: true }],
-    outputs: [{ name: "current_balance", type: "string", description: "Displayed savings balance" }]
+    outputs: [{ name: "current_balance", type: "string", description: "Displayed savings balance", pattern: "^\\$" }]
   },
   steps: [
     { id: "open_members", action: "navigate", description: "Open member search", url: "${target.entrypoint}" },

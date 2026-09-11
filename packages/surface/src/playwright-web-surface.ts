@@ -43,11 +43,16 @@ export class PlaywrightWebSurface implements Surface {
         };
       })
     );
+    const dataFields = await this.page.locator("[data-field]").evaluateAll((elements) => elements.map((element) => {
+      const name = element.getAttribute("data-field") ?? "";
+      return { name, text: element.textContent?.trim() ?? "", selector: `[data-field="${CSS.escape(name)}"]` };
+    }));
     return {
       url: this.page.url(),
       title: await this.page.title(),
       visibleText: (await this.page.locator("body").innerText()).trim(),
-      controls
+      controls,
+      dataFields
     };
   }
 

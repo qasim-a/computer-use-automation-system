@@ -25,6 +25,7 @@ export type DiscoveryTurn = {
   step: number;
   observation: SurfaceObservation;
   action: DiscoveryAction;
+  error?: string;
 };
 
 export type DecisionContext = {
@@ -32,6 +33,9 @@ export type DecisionContext = {
   step: number;
   observation: SurfaceObservation;
   history: readonly DiscoveryTurn[];
+  availableInputs: readonly string[];
+  declaredOutputs: readonly string[];
+  completedOutputs: readonly string[];
 };
 
 export interface DecisionProvider {
@@ -77,12 +81,21 @@ export class DiscoveryRunner {
         goal: request.goal,
         step: stepNumber,
         observation,
-        history: turns
+        history: turns,
+        availableInputs: request.contract.inputs.map((input) => input.name),
+        declaredOutputs: request.contract.outputs.map((output) => output.name),
+        completedOutputs: Object.keys(outputs)
       });
-      turns.push({ step: stepNumber, observation, action });
+      const turn: DiscoveryTurn = { step: stepNumber, observation, action };
+      turns.push(turn);
 
       if (action.action === "finish") {
-        await verifyCheckpoint(this.surface, action.success);
+        try {
+          await verifyCheckpoint(this.surface, action.success);
+        } catch (error) {
+          turn.error = `Completion rejected: ${messageOf(error)}`;
+          continue;
+        }
         const artifact = capabilityArtifactSchema.parse({
           schemaVersion: "1.0",
           capability: request.capability,
@@ -94,12 +107,21 @@ export class DiscoveryRunner {
         return { runId, artifact, outputs, turns };
       }
 
-      await executeAction(this.surface, action, request, outputs);
-      if (action.checkpoint) await verifyCheckpoint(this.surface, action.checkpoint);
-      recordedSteps.push(action);
+      try {
+        validateRecordedAction(action, request, recordedSteps);
+        await executeAction(this.surface, action, request, outputs);
+        if (action.checkpoint) await verifyCheckpoint(this.surface, action.checkpoint);
+        recordedSteps.push(action);
+      } catch (error) {
+        turn.error = `Action rejected: ${messageOf(error)}`;
+      }
     }
     throw new DiscoveryStoppedError(`Discovery exceeded its ${maxSteps}-step limit`, turns);
   }
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 async function executeAction(
@@ -119,7 +141,11 @@ async function executeAction(
       await surface.fill(action.target, bind(action.value, request));
       break;
     case "extract":
-      outputs[action.output] = await surface.extractText(action.target);
+      {
+        const value = await surface.extractText(action.target);
+        validateOutput(action.output, value, request.contract);
+        outputs[action.output] = value;
+      }
       break;
     case "wait":
       await verifyCheckpoint(surface, action.for);
@@ -154,6 +180,26 @@ function validateInvocation(request: DiscoveryRequest): void {
     const value = request.inputs[input.name];
     if (input.required && value === undefined) throw new Error(`Missing required input: ${input.name}`);
     if (value !== undefined && typeof value !== input.type) throw new Error(`Input ${input.name} must be ${input.type}`);
+  }
+}
+
+function validateRecordedAction(action: CapabilityStep, request: DiscoveryRequest, recordedSteps: readonly CapabilityStep[]): void {
+  if (recordedSteps.some((step) => step.id === action.id)) throw new Error(`Duplicate step ID: ${action.id}`);
+  if (action.action !== "fill") return;
+  for (const input of request.contract.inputs) {
+    const runtimeValue = request.inputs[input.name];
+    if (runtimeValue !== undefined && action.value === String(runtimeValue)) {
+      throw new Error(`Runtime input ${input.name} must be recorded as \${inputs.${input.name}}`);
+    }
+  }
+}
+
+function validateOutput(name: string, value: unknown, contract: DiscoveryRequest["contract"]): void {
+  const output = contract.outputs.find((candidate) => candidate.name === name);
+  if (!output) throw new Error(`Output ${name} is not declared`);
+  if (typeof value !== output.type) throw new Error(`Output ${name} must be ${output.type}`);
+  if (output.pattern && !new RegExp(output.pattern).test(String(value))) {
+    throw new Error(`Output ${name} did not match its declared pattern`);
   }
 }
 

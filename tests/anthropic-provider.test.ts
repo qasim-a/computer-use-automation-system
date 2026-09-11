@@ -11,11 +11,15 @@ const context: DecisionContext = {
   goal: "Look up member 12345 and return the savings balance",
   step: 0,
   history: [],
+  availableInputs: ["member_id"],
+  declaredOutputs: ["current_balance"],
+  completedOutputs: [],
   observation: {
     url: "about:blank",
     title: "",
     visibleText: "",
-    controls: []
+    controls: [],
+    dataFields: []
   }
 };
 

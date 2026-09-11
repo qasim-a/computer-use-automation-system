@@ -12,6 +12,7 @@ export type SurfaceObservation = {
   title: string;
   visibleText: string;
   controls: ObservedControl[];
+  dataFields: Array<{ name: string; text: string; selector: string }>;
 };
 
 export interface Surface {

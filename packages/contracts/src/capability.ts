@@ -59,7 +59,9 @@ export const capabilityArtifactSchema = z.object({
   }),
   contract: z.object({
     inputs: z.array(parameterSchema),
-    outputs: z.array(parameterSchema.omit({ required: true, sensitive: true }))
+    outputs: z.array(parameterSchema.omit({ required: true, sensitive: true }).extend({
+      pattern: z.string().min(1).optional()
+    }))
   }),
   steps: z.array(stepSchema).min(1),
   success: checkpointSchema,

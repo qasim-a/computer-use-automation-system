@@ -8,6 +8,8 @@ The repository currently contains a local legacy-style member-service target, ca
 
 Copy `.env.example` to `.env` and provide an Anthropic API key only when running live discovery. The automated test suite injects a fake client and never contacts Anthropic.
 
+Run `npm run evidence:live` to perform one bounded Claude discovery and a model-free replay. Redacted logs, the generated artifact, token usage, and final screenshots are written under `evidence/live-run/`.
+
 ## Run locally
 
 ```bash
