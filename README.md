@@ -16,6 +16,8 @@ Replay distinguishes successful outputs, declared business outcomes, and hard fa
 
 Hard failures can route into a same-session handoff controller. Automation pauses with contextual state and an optional screenshot, an identified operator controls the existing surface through an audited session, and replay resumes with one bounded retry after control is returned.
 
+Structured observers record run, step, retry, outcome, and failure events. The file observer recursively redacts configured values and sensitive keys before writing JSONL, and captures a screenshot when replay ends in a hard failure.
+
 ## Run locally
 
 ```bash

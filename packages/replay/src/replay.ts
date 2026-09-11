@@ -9,12 +9,14 @@ import {
 import type { Surface } from "../../surface/src/index.js";
 import { ActionPolicy } from "../../policy/src/index.js";
 import type { HandoffController } from "../../handoff/src/index.js";
+import { NoopRunObserver, type RunObserver } from "../../observability/src/index.js";
 
 export class ReplayEngine {
   constructor(
     private readonly surface: Surface,
     private readonly policy = ActionPolicy.localDevelopment(),
-    private readonly handoff?: HandoffController
+    private readonly handoff?: HandoffController,
+    private readonly observer: RunObserver = new NoopRunObserver()
   ) {}
 
   async run(untrustedArtifact: unknown, inputs: Record<string, unknown>): Promise<ReplayResult> {
@@ -24,24 +26,34 @@ export class ReplayEngine {
     try {
       artifact = capabilityArtifactSchema.parse(untrustedArtifact);
     } catch (error) {
+      await this.observer.record({ runId, phase: "replay", type: "run_rejected", details: { code: "invalid_artifact" } });
       return this.failure(runId, "invalid_artifact", "Artifact validation failed", startedAt, undefined, error);
     }
 
     const inputError = validateInputs(artifact, inputs);
     if (inputError) {
+      await this.observer.record({ runId, phase: "replay", type: "run_rejected", details: { code: "invalid_inputs", message: inputError } });
       return this.failure(runId, "invalid_inputs", inputError, startedAt, artifact);
     }
 
     const outputs: Record<string, unknown> = {};
+    await this.observer.record({
+      runId, phase: "replay", type: "run_started",
+      details: { capability: artifact.capability.name, version: artifact.capability.version }
+    });
     let activeStep: CapabilityStep | undefined;
     try {
       for (const step of artifact.steps) {
         activeStep = step;
         try {
-          await this.executeWithRetry(step, artifact, inputs, outputs);
+          await this.executeWithRetry(runId, step, artifact, inputs, outputs);
         } catch (error) {
           const outcome = await this.detectBusinessOutcome(artifact, inputs);
           if (outcome) {
+            await this.observer.record({
+              runId, phase: "replay", type: "business_outcome", stepId: step.id,
+              details: { code: outcome.code, message: outcome.message }
+            });
             return replayResultSchema.parse({
               runId,
               capabilityName: artifact.capability.name,
@@ -56,6 +68,7 @@ export class ReplayEngine {
         }
       }
       await this.verify(artifact.success, artifact, inputs);
+      await this.observer.record({ runId, phase: "replay", type: "run_succeeded", details: { outputs } });
       return replayResultSchema.parse({
         runId,
         capabilityName: artifact.capability.name,
@@ -65,11 +78,17 @@ export class ReplayEngine {
         outputs
       });
     } catch (error) {
-      return this.failure(runId, "step_failed", messageOf(error), startedAt, artifact, error, activeStep?.id);
+      const screenshot = await this.observer.captureFailure(this.surface, runId, activeStep?.id);
+      await this.observer.record({
+        runId, phase: "replay", type: "run_failed", ...(activeStep?.id ? { stepId: activeStep.id } : {}),
+        details: { code: "step_failed", message: messageOf(error), ...(screenshot ? { screenshot } : {}) }
+      });
+      return this.failure(runId, "step_failed", messageOf(error), startedAt, artifact, error, activeStep?.id, screenshot);
     }
   }
 
   private async executeWithRetry(
+    runId: string,
     step: CapabilityStep,
     artifact: CapabilityArtifact,
     inputs: Record<string, unknown>,
@@ -79,14 +98,23 @@ export class ReplayEngine {
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
+        await this.observer.record({
+          runId, phase: "replay", type: "step_started", stepId: step.id,
+          details: { action: step.action, attempt, maxAttempts }
+        });
         const currentUrl = (await this.surface.observe()).url;
         const navigationUrl = step.action === "navigate" ? bind(step.url, artifact, inputs) : undefined;
         await this.policy.authorize(step, currentUrl, navigationUrl);
         await this.execute(step, artifact, inputs, outputs);
         if (step.checkpoint) await this.verify(step.checkpoint, artifact, inputs);
+        await this.observer.record({ runId, phase: "replay", type: "step_succeeded", stepId: step.id, details: { attempt } });
         return;
       } catch (error) {
         lastError = error;
+        await this.observer.record({
+          runId, phase: "replay", type: attempt < maxAttempts ? "step_retrying" : "step_exhausted",
+          stepId: step.id, details: { attempt, message: messageOf(error) }
+        });
         if (attempt < maxAttempts && step.retry) await delay(step.retry.delayMs);
       }
     }
@@ -177,7 +205,8 @@ export class ReplayEngine {
     startedAt: number,
     artifact?: CapabilityArtifact,
     error?: unknown,
-    stepId?: string
+    stepId?: string,
+    screenshot?: string
   ): ReplayResult {
     return replayResultSchema.parse({
       runId,
@@ -190,7 +219,7 @@ export class ReplayEngine {
         message,
         ...(stepId ? { stepId } : {}),
         ...(error ? { observed: messageOf(error) } : {}),
-        evidence: []
+        evidence: screenshot ? [screenshot] : []
       }
     });
   }

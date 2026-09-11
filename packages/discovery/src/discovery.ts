@@ -10,6 +10,7 @@ import {
 } from "../../contracts/src/index.js";
 import type { Surface, SurfaceObservation } from "../../surface/src/index.js";
 import { ActionPolicy } from "../../policy/src/index.js";
+import { NoopRunObserver, type RunObserver } from "../../observability/src/index.js";
 
 type Checkpoint = NonNullable<CapabilityStep["checkpoint"]>;
 
@@ -69,7 +70,8 @@ export class DiscoveryRunner {
   constructor(
     private readonly surface: Surface,
     private readonly decisions: DecisionProvider,
-    private readonly policy = ActionPolicy.localDevelopment()
+    private readonly policy = ActionPolicy.localDevelopment(),
+    private readonly observer: RunObserver = new NoopRunObserver()
   ) {}
 
   async run(request: DiscoveryRequest): Promise<DiscoveryResult> {
@@ -80,6 +82,7 @@ export class DiscoveryRunner {
     const outputs: Record<string, unknown> = {};
 
     validateInvocation(request);
+    await this.observer.record({ runId, phase: "discovery", type: "run_started", details: { goal: request.goal } });
     for (let stepNumber = 0; stepNumber < maxSteps; stepNumber += 1) {
       const observation = await this.surface.observe();
       const action = await this.decisions.decide({
@@ -93,12 +96,17 @@ export class DiscoveryRunner {
       });
       const turn: DiscoveryTurn = { step: stepNumber, observation, action };
       turns.push(turn);
+      await this.observer.record({
+        runId, phase: "discovery", type: "action_selected",
+        details: { step: stepNumber, action }
+      });
 
       if (action.action === "finish") {
         try {
           await verifyCheckpoint(this.surface, action.success);
         } catch (error) {
           turn.error = `Completion rejected: ${messageOf(error)}`;
+          await this.observer.record({ runId, phase: "discovery", type: "completion_rejected", details: { message: turn.error } });
           continue;
         }
         const artifact = capabilityArtifactSchema.parse({
@@ -109,6 +117,7 @@ export class DiscoveryRunner {
           success: action.success,
           metadata: { createdAt: new Date().toISOString(), discoveryRunId: runId }
         });
+        await this.observer.record({ runId, phase: "discovery", type: "run_succeeded", details: { outputs } });
         return { runId, artifact, outputs, turns };
       }
 
@@ -120,10 +129,16 @@ export class DiscoveryRunner {
         await executeAction(this.surface, action, request, outputs);
         if (action.checkpoint) await verifyCheckpoint(this.surface, action.checkpoint);
         recordedSteps.push(action);
+        await this.observer.record({ runId, phase: "discovery", type: "step_succeeded", stepId: action.id });
       } catch (error) {
         turn.error = `Action rejected: ${messageOf(error)}`;
+        await this.observer.record({
+          runId, phase: "discovery", type: "step_rejected", stepId: action.id,
+          details: { message: turn.error }
+        });
       }
     }
+    await this.observer.record({ runId, phase: "discovery", type: "run_failed", details: { code: "max_steps", maxSteps } });
     throw new DiscoveryStoppedError(`Discovery exceeded its ${maxSteps}-step limit`, turns);
   }
 }
