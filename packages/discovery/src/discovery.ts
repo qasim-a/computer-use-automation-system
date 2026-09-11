@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import {
   capabilityArtifactSchema,
+  checkpointSchema,
+  stepSchema,
   type CapabilityArtifact,
   type CapabilityStep,
   type ControlTarget
@@ -12,6 +15,11 @@ type Checkpoint = NonNullable<CapabilityStep["checkpoint"]>;
 export type DiscoveryAction =
   | CapabilityStep
   | { action: "finish"; description: string; success: Checkpoint };
+
+export const discoveryActionSchema = z.union([
+  stepSchema,
+  z.object({ action: z.literal("finish"), description: z.string().min(1), success: checkpointSchema })
+]);
 
 export type DiscoveryTurn = {
   step: number;

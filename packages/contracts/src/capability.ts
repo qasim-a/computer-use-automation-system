@@ -28,7 +28,7 @@ export const targetSchema = z.object({
   requireUnique: z.boolean().default(true)
 });
 
-const checkpointSchema = z.discriminatedUnion("kind", [
+export const checkpointSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("url"), matches: z.string().min(1) }),
   z.object({ kind: z.literal("visible"), target: targetSchema }),
   z.object({ kind: z.literal("text"), target: targetSchema, matches: z.string().min(1) })
