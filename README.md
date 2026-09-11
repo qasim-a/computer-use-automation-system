@@ -4,7 +4,7 @@ A focused implementation of an LLM-driven UI discovery run that becomes a determ
 
 ## Current milestone
 
-The repository currently contains a local legacy-style member-service target, the versioned capability contract, a Playwright-backed surface abstraction, and a deterministic replay engine. The saved example capability performs the balance workflow without a model in the decision loop.
+The repository currently contains a local legacy-style member-service target, capability contracts, a Playwright surface, and deterministic replay. A bounded discovery runner can use a replaceable decision provider to observe and operate the target, record successful actions as an artifact, and replay that artifact with different inputs.
 
 ## Run locally
 
