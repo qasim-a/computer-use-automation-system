@@ -37,8 +37,12 @@ export class FileRunObserver implements RunObserver {
   private readonly logPath: string;
   private initialized = false;
 
-  constructor(private readonly directory: string, private readonly redactor = new Redactor()) {
-    this.logPath = resolve(directory, "events.jsonl");
+  constructor(
+    private readonly directory: string,
+    private readonly redactor = new Redactor(),
+    filename = "events.jsonl"
+  ) {
+    this.logPath = resolve(directory, filename);
   }
 
   async record(event: Omit<RunEvent, "timestamp">): Promise<void> {

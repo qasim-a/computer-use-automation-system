@@ -46,3 +46,10 @@ test("file observer writes redacted JSONL and requests a failure screenshot", as
   assert.match(screenshotPath, /run-1-search_member-failure\.png$/);
   assert.doesNotMatch(await readFile(`${directory}/events.jsonl`, "utf8"), /12345/);
 });
+
+test("file observer supports a named log for colocated run evidence", async () => {
+  const directory = `/tmp/cuas-observer-${randomUUID()}`;
+  const observer = new FileRunObserver(directory, new Redactor(), "replay.jsonl");
+  await observer.record({ runId: "run-2", phase: "replay", type: "run_succeeded" });
+  assert.match(await readFile(`${directory}/replay.jsonl`, "utf8"), /"type":"run_succeeded"/);
+});

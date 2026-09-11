@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { startTargetServer } from "../apps/target/src/server.js";
 import { AnthropicDecisionProvider, DiscoveryRunner } from "../packages/discovery/src/index.js";
+import { FileRunObserver, Redactor } from "../packages/observability/src/index.js";
 import { ReplayEngine } from "../packages/replay/src/index.js";
 import { PlaywrightWebSurface } from "../packages/surface/src/index.js";
 
@@ -61,7 +62,13 @@ try {
 
   const replaySurface = await PlaywrightWebSurface.launch();
   try {
-    const replay = await new ReplayEngine(replaySurface).run(discovery.artifact, { member_id: "67890" });
+    const replayObserver = new FileRunObserver(
+      evidenceDirectory,
+      new Redactor(sensitiveValues),
+      "replay.jsonl"
+    );
+    const replay = await new ReplayEngine(replaySurface, undefined, undefined, replayObserver)
+      .run(discovery.artifact, { member_id: "67890" });
     if (replay.status !== "success") throw new Error(`Replay failed: ${JSON.stringify(replay)}`);
     await replaySurface.screenshot(resolve(evidenceDirectory, "replay-final.png"));
     await writeFile(resolve(evidenceDirectory, "replay.json"), `${redact(JSON.stringify(replay, null, 2))}\n`);

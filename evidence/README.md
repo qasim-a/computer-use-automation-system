@@ -4,7 +4,7 @@
 
 - `artifact.json` is the capability produced by the discovery runner.
 - `discovery.jsonl` records each observed URL and model-selected action with runtime member IDs redacted.
-- `replay.json` is the structured model-free replay result using a different input.
+- `replay.jsonl` is the detailed redacted event log for the model-free replay, while `replay.json` is its structured result using a different input.
 - `usage.json` records the model and token totals for the discovery run.
 - The two PNG files show the final discovery and replay UI states.
 

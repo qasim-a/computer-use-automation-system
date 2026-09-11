@@ -58,7 +58,7 @@ The hand-authored capability in `capabilities/read_savings_balance.json` shows h
 
 ## Evidence
 
-`evidence/live-run` contains a genuine six-turn Claude Sonnet 5 discovery, the generated artifact, redacted discovery log, token usage, screenshots, and a successful model-free replay using a different member. That canonical discovery used 12,353 input tokens and 1,261 output tokens.
+`evidence/live-run` contains a genuine six-turn Claude Sonnet 5 discovery, the generated artifact, redacted discovery and replay logs, token usage, screenshots, and a successful model-free replay using a different member. That canonical discovery used 12,353 input tokens and 1,261 output tokens.
 
 `evidence/exceptional-run` contains a deterministic replay that returns `member_not_found`, including its structured event log and final UI state. `evidence/artifact-comparison.md` and its JSON source provide the reproducible four-case comparison between the Claude-discovered and engineered artifacts.
 
