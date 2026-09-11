@@ -65,9 +65,23 @@ test("surface reports every failed locator candidate", async () => {
           { strategy: "text", value: "Proceed", exact: true }
         ],
         requireUnique: true
-      }),
+      }, 100),
       (error) => error instanceof TargetResolutionError && error.attempts.length === 2
     );
+  } finally {
+    await surface.close();
+  }
+});
+
+test("visibility checks reject hidden DOM matches", async () => {
+  const surface = await PlaywrightWebSurface.launch();
+  try {
+    await surface.navigate(origin);
+    assert.equal(await surface.isVisible({
+      description: "Hidden document metadata",
+      locators: [{ strategy: "css", value: "head", exact: true }],
+      requireUnique: true
+    }, 20), false);
   } finally {
     await surface.close();
   }

@@ -81,13 +81,58 @@ export const capabilityArtifactSchema = z.object({
   if (new Set(inputNames).size !== inputNames.length) {
     context.addIssue({ code: "custom", path: ["contract", "inputs"], message: "Input names must be unique" });
   }
-  const outputNames = new Set(artifact.contract.outputs.map((output) => output.name));
+  const outputNameList = artifact.contract.outputs.map((output) => output.name);
+  const outputNames = new Set(outputNameList);
+  if (outputNames.size !== outputNameList.length) {
+    context.addIssue({ code: "custom", path: ["contract", "outputs"], message: "Output names must be unique" });
+  }
+  const stepIds = artifact.steps.map((step) => step.id);
+  if (new Set(stepIds).size !== stepIds.length) {
+    context.addIssue({ code: "custom", path: ["steps"], message: "Step IDs must be unique" });
+  }
   for (const [index, step] of artifact.steps.entries()) {
     if (step.action === "extract" && !outputNames.has(step.output)) {
       context.addIssue({ code: "custom", path: ["steps", index, "output"], message: "Extracted output must be declared" });
     }
   }
+  for (const [index, output] of artifact.contract.outputs.entries()) {
+    const producers = artifact.steps.filter((step) => step.action === "extract" && step.output === output.name);
+    if (producers.length !== 1) {
+      context.addIssue({
+        code: "custom", path: ["contract", "outputs", index, "name"],
+        message: `Output ${output.name} must have exactly one extract step`
+      });
+    }
+  }
+  for (const candidate of templatedStrings(artifact)) {
+    for (const match of candidate.value.matchAll(/\$\{([^}]+)\}/g)) {
+      const expression = match[1]!;
+      const valid = expression === "target.entrypoint"
+        || (expression.startsWith("inputs.") && inputNames.includes(expression.slice("inputs.".length)));
+      if (!valid) context.addIssue({ code: "custom", path: candidate.path, message: `Unknown template reference \${${expression}}` });
+    }
+  }
 });
+
+function templatedStrings(artifact: {
+  steps: z.infer<typeof stepSchema>[];
+  businessOutcomes: Array<{ checkpoint: z.infer<typeof checkpointSchema> }>;
+  success: z.infer<typeof checkpointSchema>;
+}): Array<{ value: string; path: Array<string | number> }> {
+  const values: Array<{ value: string; path: Array<string | number> }> = [];
+  const addCheckpoint = (checkpoint: z.infer<typeof checkpointSchema>, path: Array<string | number>) => {
+    if (checkpoint.kind === "url" || checkpoint.kind === "text") values.push({ value: checkpoint.matches, path: [...path, "matches"] });
+  };
+  artifact.steps.forEach((step, index) => {
+    if (step.action === "navigate") values.push({ value: step.url, path: ["steps", index, "url"] });
+    if (step.action === "fill") values.push({ value: step.value, path: ["steps", index, "value"] });
+    if (step.action === "wait") addCheckpoint(step.for, ["steps", index, "for"]);
+    if (step.checkpoint) addCheckpoint(step.checkpoint, ["steps", index, "checkpoint"]);
+  });
+  artifact.businessOutcomes.forEach((outcome, index) => addCheckpoint(outcome.checkpoint, ["businessOutcomes", index, "checkpoint"]));
+  addCheckpoint(artifact.success, ["success"]);
+  return values;
+}
 
 const runContextSchema = z.object({
   runId: z.string().min(1),

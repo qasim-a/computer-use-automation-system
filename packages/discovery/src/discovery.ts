@@ -103,6 +103,7 @@ export class DiscoveryRunner {
 
       if (action.action === "finish") {
         try {
+          validateCompleteOutputs(request.contract, outputs);
           await verifyCheckpoint(this.surface, action.success);
         } catch (error) {
           turn.error = `Completion rejected: ${messageOf(error)}`;
@@ -122,12 +123,13 @@ export class DiscoveryRunner {
       }
 
       try {
+        const deadline = Date.now() + action.timeoutMs;
         validateRecordedAction(action, request, recordedSteps);
         const currentUrl = (await this.surface.observe()).url;
         const navigationUrl = action.action === "navigate" ? bind(action.url, request) : undefined;
         await this.policy.authorize(action, currentUrl, navigationUrl);
-        await executeAction(this.surface, action, request, outputs);
-        if (action.checkpoint) await verifyCheckpoint(this.surface, action.checkpoint);
+        await executeAction(this.surface, action, request, outputs, remaining(deadline));
+        if (action.checkpoint) await verifyCheckpoint(this.surface, action.checkpoint, remaining(deadline));
         recordedSteps.push(action);
         await this.observer.record({ runId, phase: "discovery", type: "step_succeeded", stepId: action.id });
       } catch (error) {
@@ -151,32 +153,33 @@ async function executeAction(
   surface: Surface,
   action: CapabilityStep,
   request: DiscoveryRequest,
-  outputs: Record<string, unknown>
+  outputs: Record<string, unknown>,
+  timeoutMs: number
 ): Promise<void> {
   switch (action.action) {
     case "navigate":
-      await surface.navigate(bind(action.url, request));
+      await surface.navigate(bind(action.url, request), timeoutMs);
       break;
     case "click":
-      await surface.click(action.target);
+      await surface.click(action.target, timeoutMs);
       break;
     case "fill":
-      await surface.fill(action.target, bind(action.value, request));
+      await surface.fill(action.target, bind(action.value, request), timeoutMs);
       break;
     case "extract":
       {
-        const value = await surface.extractText(action.target);
+        const value = await surface.extractText(action.target, timeoutMs);
         validateOutput(action.output, value, request.contract);
         outputs[action.output] = value;
       }
       break;
     case "wait":
-      await verifyCheckpoint(surface, action.for);
+      await verifyCheckpoint(surface, action.for, timeoutMs);
       break;
   }
 }
 
-async function verifyCheckpoint(surface: Surface, checkpoint: Checkpoint): Promise<void> {
+async function verifyCheckpoint(surface: Surface, checkpoint: Checkpoint, timeoutMs = 10_000): Promise<void> {
   if (checkpoint.kind === "url") {
     const observed = (await surface.observe()).url;
     if (!new RegExp(checkpoint.matches).test(observed)) {
@@ -184,7 +187,13 @@ async function verifyCheckpoint(surface: Surface, checkpoint: Checkpoint): Promi
     }
     return;
   }
-  const observed = await surface.extractText(checkpoint.target);
+  if (checkpoint.kind === "visible") {
+    if (!await surface.isVisible(checkpoint.target, timeoutMs)) {
+      throw new Error(`Visibility checkpoint failed: ${checkpoint.target.description} is not visible`);
+    }
+    return;
+  }
+  const observed = await surface.extractText(checkpoint.target, timeoutMs);
   if (checkpoint.kind === "text" && !new RegExp(checkpoint.matches).test(observed)) {
     throw new Error(`Text checkpoint failed: expected ${checkpoint.matches}, observed ${observed}`);
   }
@@ -224,6 +233,19 @@ function validateOutput(name: string, value: unknown, contract: DiscoveryRequest
   if (output.pattern && !new RegExp(output.pattern).test(String(value))) {
     throw new Error(`Output ${name} did not match its declared pattern`);
   }
+}
+
+function validateCompleteOutputs(contract: DiscoveryRequest["contract"], outputs: Record<string, unknown>): void {
+  for (const output of contract.outputs) {
+    if (!(output.name in outputs)) throw new Error(`Required output ${output.name} was not produced`);
+    validateOutput(output.name, outputs[output.name], contract);
+  }
+}
+
+function remaining(deadline: number): number {
+  const milliseconds = deadline - Date.now();
+  if (milliseconds <= 0) throw new Error("Step timeout exhausted");
+  return milliseconds;
 }
 
 export const targets = {

@@ -106,6 +106,25 @@ test("continues after rejecting an invalid completion claim", async () => {
   }
 });
 
+test("rejects completion until every declared output is produced", async () => {
+  const surface = await PlaywrightWebSurface.launch();
+  const prematureFinish: DiscoveryAction = {
+    action: "finish",
+    description: "Finish before extracting",
+    success: { kind: "visible", target: targets.memberNumber }
+  };
+  try {
+    const result = await new DiscoveryRunner(
+      surface,
+      new ScriptedDecisionProvider([actions[0]!, prematureFinish, ...actions.slice(1)])
+    ).run({ ...request(), maxSteps: 8 });
+    assert.match(result.turns[1]?.error ?? "", /Required output current_balance was not produced/);
+    assert.deepEqual(result.outputs, { current_balance: "$4,281.36" });
+  } finally {
+    await surface.close();
+  }
+});
+
 test("rejects literal runtime inputs before recording them", async () => {
   const surface = await PlaywrightWebSurface.launch();
   const literalFill = { ...actions[1]!, value: "12345" } as DiscoveryAction;

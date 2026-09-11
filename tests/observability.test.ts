@@ -36,7 +36,7 @@ test("file observer writes redacted JSONL and requests a failure screenshot", as
   const surface: Surface = {
     navigate: async () => {},
     observe: async () => ({ url: "about:blank", title: "", visibleText: "", controls: [], dataFields: [] }),
-    click: async () => {}, fill: async () => {}, extractText: async () => "", close: async () => {},
+    click: async () => {}, fill: async () => {}, extractText: async () => "", isVisible: async () => true, close: async () => {},
     screenshot: async (path) => { screenshotPath = path; }
   };
   const observer = new FileRunObserver(directory, new Redactor(["12345"]));

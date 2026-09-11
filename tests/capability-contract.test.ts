@@ -44,6 +44,24 @@ test("rejects extraction into an undeclared output", () => {
   assert.equal(capabilityArtifactSchema.safeParse(invalid).success, false);
 });
 
+test("rejects ambiguous or incomplete artifact contracts", () => {
+  const duplicateStep = structuredClone(artifact);
+  duplicateStep.steps[1]!.id = duplicateStep.steps[0]!.id;
+  assert.equal(capabilityArtifactSchema.safeParse(duplicateStep).success, false);
+
+  const duplicateOutput = structuredClone(artifact);
+  duplicateOutput.contract.outputs.push(structuredClone(duplicateOutput.contract.outputs[0]!));
+  assert.equal(capabilityArtifactSchema.safeParse(duplicateOutput).success, false);
+
+  const missingProducer = structuredClone(artifact);
+  missingProducer.steps = missingProducer.steps.filter((step) => step.action !== "extract");
+  assert.equal(capabilityArtifactSchema.safeParse(missingProducer).success, false);
+
+  const unknownTemplate = structuredClone(artifact);
+  unknownTemplate.steps[1]!.value = "${inputs.undeclared}";
+  assert.equal(capabilityArtifactSchema.safeParse(unknownTemplate).success, false);
+});
+
 test("requires complete role locators", () => {
   const invalid: Record<string, any> = structuredClone(artifact);
   delete invalid.success.target.locators[0]!.role;

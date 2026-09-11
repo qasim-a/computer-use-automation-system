@@ -16,11 +16,12 @@ export type SurfaceObservation = {
 };
 
 export interface Surface {
-  navigate(url: string): Promise<void>;
+  navigate(url: string, timeoutMs?: number): Promise<void>;
   observe(): Promise<SurfaceObservation>;
-  click(target: ControlTarget): Promise<void>;
-  fill(target: ControlTarget, value: string): Promise<void>;
-  extractText(target: ControlTarget): Promise<string>;
+  click(target: ControlTarget, timeoutMs?: number): Promise<void>;
+  fill(target: ControlTarget, value: string, timeoutMs?: number): Promise<void>;
+  extractText(target: ControlTarget, timeoutMs?: number): Promise<string>;
+  isVisible(target: ControlTarget, timeoutMs?: number): Promise<boolean>;
   screenshot(path: string): Promise<void>;
   close(): Promise<void>;
 }

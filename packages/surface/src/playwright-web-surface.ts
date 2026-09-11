@@ -8,22 +8,28 @@ export type WebSurfaceOptions = {
 };
 
 export class PlaywrightWebSurface implements Surface {
+  private readonly actionTimeoutMs: number;
+
   private constructor(
     private readonly browser: Browser,
     private readonly context: BrowserContext,
-    private readonly page: Page
-  ) {}
+    private readonly page: Page,
+    actionTimeoutMs: number
+  ) {
+    this.actionTimeoutMs = actionTimeoutMs;
+  }
 
   static async launch(options: WebSurfaceOptions = {}): Promise<PlaywrightWebSurface> {
     const browser = await chromium.launch({ headless: options.headless ?? true });
     const context = await browser.newContext();
     const page = await context.newPage();
-    page.setDefaultTimeout(options.actionTimeoutMs ?? 10_000);
-    return new PlaywrightWebSurface(browser, context, page);
+    const actionTimeoutMs = options.actionTimeoutMs ?? 10_000;
+    page.setDefaultTimeout(actionTimeoutMs);
+    return new PlaywrightWebSurface(browser, context, page, actionTimeoutMs);
   }
 
-  async navigate(url: string): Promise<void> {
-    await this.page.goto(url, { waitUntil: "domcontentloaded" });
+  async navigate(url: string, timeoutMs = this.actionTimeoutMs): Promise<void> {
+    await this.page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });
   }
 
   async observe(): Promise<SurfaceObservation> {
@@ -56,16 +62,32 @@ export class PlaywrightWebSurface implements Surface {
     };
   }
 
-  async click(target: ControlTarget): Promise<void> {
-    await (await this.resolve(target)).click();
+  async click(target: ControlTarget, timeoutMs = this.actionTimeoutMs): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    const locator = await this.resolve(target, timeoutMs);
+    await locator.click({ timeout: remaining(deadline) });
   }
 
-  async fill(target: ControlTarget, value: string): Promise<void> {
-    await (await this.resolve(target)).fill(value);
+  async fill(target: ControlTarget, value: string, timeoutMs = this.actionTimeoutMs): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    const locator = await this.resolve(target, timeoutMs);
+    await locator.fill(value, { timeout: remaining(deadline) });
   }
 
-  async extractText(target: ControlTarget): Promise<string> {
-    return (await (await this.resolve(target)).innerText()).trim();
+  async extractText(target: ControlTarget, timeoutMs = this.actionTimeoutMs): Promise<string> {
+    const deadline = Date.now() + timeoutMs;
+    const locator = await this.resolve(target, timeoutMs);
+    return (await locator.innerText({ timeout: remaining(deadline) })).trim();
+  }
+
+  async isVisible(target: ControlTarget, timeoutMs = this.actionTimeoutMs): Promise<boolean> {
+    try {
+      await this.resolve(target, timeoutMs);
+      return true;
+    } catch (error) {
+      if (error instanceof TargetResolutionError) return false;
+      throw error;
+    }
   }
 
   async screenshot(path: string): Promise<void> {
@@ -91,14 +113,25 @@ export class PlaywrightWebSurface implements Surface {
     }
   }
 
-  private async resolve(target: ControlTarget): Promise<Locator> {
-    const attempts: Array<{ strategy: string; value: string; matches: number }> = [];
-    for (const [index, definition] of target.locators.entries()) {
-      const locator = this.candidate(target, index);
-      const matches = await locator.count();
-      attempts.push({ strategy: definition.strategy, value: definition.value, matches });
-      if (matches === 1 || (!target.requireUnique && matches > 0)) return locator.first();
-    }
+  private async resolve(target: ControlTarget, timeoutMs: number): Promise<Locator> {
+    const deadline = Date.now() + timeoutMs;
+    let attempts: Array<{ strategy: string; value: string; matches: number }> = [];
+    do {
+      attempts = [];
+      for (const [index, definition] of target.locators.entries()) {
+        const locator = this.candidate(target, index);
+        const matches = await locator.count();
+        attempts.push({ strategy: definition.strategy, value: definition.value, matches });
+        const cardinalityMatches = matches === 1 || (!target.requireUnique && matches > 0);
+        if (cardinalityMatches && await locator.first().isVisible()) return locator.first();
+      }
+      const remaining = deadline - Date.now();
+      if (remaining > 0) await new Promise((resolveWait) => setTimeout(resolveWait, Math.min(50, remaining)));
+    } while (Date.now() < deadline);
     throw new TargetResolutionError(`Could not uniquely resolve ${target.description}`, target, attempts);
   }
+}
+
+function remaining(deadline: number): number {
+  return Math.max(1, deadline - Date.now());
 }

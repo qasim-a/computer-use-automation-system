@@ -67,6 +67,7 @@ export class ReplayEngine {
           throw error;
         }
       }
+      validateOutputs(artifact, outputs);
       await this.verify(artifact.success, artifact, inputs);
       await this.observer.record({ runId, phase: "replay", type: "run_succeeded", details: { outputs } });
       return replayResultSchema.parse({
@@ -98,6 +99,7 @@ export class ReplayEngine {
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
+        const deadline = Date.now() + step.timeoutMs;
         await this.observer.record({
           runId, phase: "replay", type: "step_started", stepId: step.id,
           details: { action: step.action, attempt, maxAttempts }
@@ -105,8 +107,8 @@ export class ReplayEngine {
         const currentUrl = (await this.surface.observe()).url;
         const navigationUrl = step.action === "navigate" ? bind(step.url, artifact, inputs) : undefined;
         await this.policy.authorize(step, currentUrl, navigationUrl);
-        await this.execute(step, artifact, inputs, outputs);
-        if (step.checkpoint) await this.verify(step.checkpoint, artifact, inputs);
+        await this.execute(step, artifact, inputs, outputs, remaining(deadline));
+        if (step.checkpoint) await this.verify(step.checkpoint, artifact, inputs, remaining(deadline));
         await this.observer.record({ runId, phase: "replay", type: "step_succeeded", stepId: step.id, details: { attempt } });
         return;
       } catch (error) {
@@ -135,8 +137,9 @@ export class ReplayEngine {
       const currentUrl = (await this.surface.observe()).url;
       const navigationUrl = step.action === "navigate" ? bind(step.url, artifact, inputs) : undefined;
       await this.policy.authorize(step, currentUrl, navigationUrl);
-      await this.execute(step, artifact, inputs, outputs);
-      if (step.checkpoint) await this.verify(step.checkpoint, artifact, inputs);
+      const deadline = Date.now() + step.timeoutMs;
+      await this.execute(step, artifact, inputs, outputs, remaining(deadline));
+      if (step.checkpoint) await this.verify(step.checkpoint, artifact, inputs, remaining(deadline));
       return;
     }
     throw lastError;
@@ -145,7 +148,7 @@ export class ReplayEngine {
   private async detectBusinessOutcome(artifact: CapabilityArtifact, inputs: Record<string, unknown>) {
     for (const outcome of artifact.businessOutcomes) {
       try {
-        await this.verify(outcome.checkpoint, artifact, inputs);
+        await this.verify(outcome.checkpoint, artifact, inputs, 250);
         return outcome;
       } catch {
         // A non-match is expected while checking alternative declared outcomes.
@@ -158,21 +161,22 @@ export class ReplayEngine {
     step: CapabilityStep,
     artifact: CapabilityArtifact,
     inputs: Record<string, unknown>,
-    outputs: Record<string, unknown>
+    outputs: Record<string, unknown>,
+    timeoutMs: number
   ): Promise<void> {
     switch (step.action) {
       case "navigate":
-        await this.surface.navigate(bind(step.url, artifact, inputs));
+        await this.surface.navigate(bind(step.url, artifact, inputs), timeoutMs);
         break;
       case "click":
-        await this.surface.click(step.target);
+        await this.surface.click(step.target, timeoutMs);
         break;
       case "fill":
-        await this.surface.fill(step.target, bind(step.value, artifact, inputs));
+        await this.surface.fill(step.target, bind(step.value, artifact, inputs), timeoutMs);
         break;
       case "extract":
         {
-          const value = await this.surface.extractText(step.target);
+          const value = await this.surface.extractText(step.target, timeoutMs);
           const declaration = artifact.contract.outputs.find((output) => output.name === step.output);
           if (!declaration) throw new Error(`Output ${step.output} is not declared`);
           if (typeof value !== declaration.type) throw new Error(`Output ${step.output} must be ${declaration.type}`);
@@ -183,7 +187,7 @@ export class ReplayEngine {
         }
         break;
       case "wait":
-        await this.verify(step.for, artifact, inputs);
+        await this.verify(step.for, artifact, inputs, timeoutMs);
         break;
     }
   }
@@ -191,7 +195,8 @@ export class ReplayEngine {
   private async verify(
     checkpoint: CapabilityStep["checkpoint"] | CapabilityArtifact["success"],
     artifact: CapabilityArtifact,
-    inputs: Record<string, unknown>
+    inputs: Record<string, unknown>,
+    timeoutMs = 10_000
   ): Promise<void> {
     if (!checkpoint) return;
     if (checkpoint.kind === "url") {
@@ -200,7 +205,13 @@ export class ReplayEngine {
       if (!new RegExp(expected).test(observation.url)) throw new Error(`URL checkpoint failed: expected ${expected}, observed ${observation.url}`);
       return;
     }
-    const text = await this.surface.extractText(checkpoint.target);
+    if (checkpoint.kind === "visible") {
+      if (!await this.surface.isVisible(checkpoint.target, timeoutMs)) {
+        throw new Error(`Visibility checkpoint failed: ${checkpoint.target.description} is not visible`);
+      }
+      return;
+    }
+    const text = await this.surface.extractText(checkpoint.target, timeoutMs);
     if (checkpoint.kind === "text" && !new RegExp(bind(checkpoint.matches, artifact, inputs)).test(text)) {
       throw new Error(`Text checkpoint failed: expected ${checkpoint.matches}, observed ${text}`);
     }
@@ -253,10 +264,27 @@ function validateInputs(artifact: CapabilityArtifact, inputs: Record<string, unk
   return undefined;
 }
 
+function validateOutputs(artifact: CapabilityArtifact, outputs: Record<string, unknown>): void {
+  for (const declaration of artifact.contract.outputs) {
+    if (!(declaration.name in outputs)) throw new Error(`Required output ${declaration.name} was not produced`);
+    const value = outputs[declaration.name];
+    if (typeof value !== declaration.type) throw new Error(`Output ${declaration.name} must be ${declaration.type}`);
+    if (declaration.pattern && !new RegExp(declaration.pattern).test(String(value))) {
+      throw new Error(`Output ${declaration.name} did not match its declared pattern`);
+    }
+  }
+}
+
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function remaining(deadline: number): number {
+  const milliseconds = deadline - Date.now();
+  if (milliseconds <= 0) throw new Error("Step timeout exhausted");
+  return milliseconds;
 }

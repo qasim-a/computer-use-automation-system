@@ -45,6 +45,48 @@ test("rejects invalid invocation inputs before touching the surface", async () =
   }
 });
 
+test("passes each artifact step timeout to the surface", async () => {
+  const timedArtifact = structuredClone(artifact);
+  timedArtifact.steps[0].timeoutMs = 37;
+  let navigationTimeout: number | undefined;
+  let currentUrl = "about:blank";
+  const surface: Surface = {
+    navigate: async (url, timeoutMs) => { currentUrl = url; navigationTimeout = timeoutMs; },
+    observe: async () => ({ url: currentUrl, title: "", visibleText: "", controls: [], dataFields: [] }),
+    click: async () => {}, fill: async () => {}, extractText: async () => "$4,281.36",
+    isVisible: async () => true, screenshot: async () => {}, close: async () => {}
+  };
+  const result = await new ReplayEngine(surface).run(timedArtifact, { member_id: "12345" });
+  assert.equal(result.status, "success");
+  assert.equal(navigationTimeout, 37);
+});
+
+test("shares one timeout budget between a step action and its checkpoint", async () => {
+  const timedArtifact = structuredClone(artifact);
+  timedArtifact.contract.outputs = [];
+  timedArtifact.steps = [{
+    id: "timed_click", action: "click", description: "Timed click", timeoutMs: 200,
+    target: { description: "Control", locators: [{ strategy: "text", value: "Control", exact: true }], requireUnique: true },
+    checkpoint: {
+      kind: "visible",
+      target: { description: "Result", locators: [{ strategy: "text", value: "Result", exact: true }], requireUnique: true }
+    }
+  }];
+  timedArtifact.success = timedArtifact.steps[0].checkpoint;
+  const checkpointTimeouts: number[] = [];
+  const surface: Surface = {
+    navigate: async () => {},
+    observe: async () => ({ url: `${origin}/members`, title: "", visibleText: "", controls: [], dataFields: [] }),
+    click: async () => { await new Promise((resolve) => setTimeout(resolve, 50)); },
+    fill: async () => {}, extractText: async () => "",
+    isVisible: async (_target, timeoutMs) => { checkpointTimeouts.push(timeoutMs ?? 0); return true; },
+    screenshot: async () => {}, close: async () => {}
+  };
+  const result = await new ReplayEngine(surface).run(timedArtifact, { member_id: "12345" });
+  assert.equal(result.status, "success");
+  assert.ok(checkpointTimeouts[0]! > 0 && checkpointTimeouts[0]! < 180);
+});
+
 test("fails replay when extracted text violates the output contract", async () => {
   const invalidExtraction = structuredClone(artifact);
   invalidExtraction.steps.at(-1).target.locators = [{ strategy: "text", value: "Current Balance", exact: true }];
@@ -66,7 +108,8 @@ test("policy rejection prevents replay from performing the navigation", async ()
   const inertSurface: Surface = {
     navigate: async () => { navigations += 1; },
     observe: async () => ({ url: "about:blank", title: "", visibleText: "", controls: [], dataFields: [] }),
-    click: async () => {}, fill: async () => {}, extractText: async () => "", screenshot: async () => {}, close: async () => {}
+    click: async () => {}, fill: async () => {}, extractText: async () => "", isVisible: async () => true,
+    screenshot: async () => {}, close: async () => {}
   };
   const externalArtifact = structuredClone(artifact);
   externalArtifact.capability.target.entrypoint = "https://example.com/members";
@@ -77,9 +120,11 @@ test("policy rejection prevents replay from performing the navigation", async ()
 });
 
 test("returns member-not-found as a business outcome rather than a crash", async () => {
+  const notFoundArtifact = structuredClone(artifact);
+  notFoundArtifact.steps.find((step: any) => step.id === "search_member").timeoutMs = 250;
   const surface = await PlaywrightWebSurface.launch();
   try {
-    const result = await new ReplayEngine(surface).run(artifact, { member_id: "00000" });
+    const result = await new ReplayEngine(surface).run(notFoundArtifact, { member_id: "00000" });
     assert.equal(result.status, "business_outcome");
     if (result.status === "business_outcome") assert.equal(result.outcome, "member_not_found");
   } finally {
@@ -90,6 +135,7 @@ test("returns member-not-found as a business outcome rather than a crash", async
 test("recovers from a declared transient failure with a bounded retry", async () => {
   const transientArtifact = structuredClone(artifact);
   transientArtifact.capability.target.entrypoint = `${origin}/members?scenario=transient`;
+  transientArtifact.steps.find((step: any) => step.id === "search_member").timeoutMs = 500;
   const surface = await PlaywrightWebSurface.launch();
   try {
     const result = await new ReplayEngine(surface).run(transientArtifact, { member_id: "67890" });

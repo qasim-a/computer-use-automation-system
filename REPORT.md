@@ -14,7 +14,7 @@ I chose a local member-service app instead of a public demo site. That makes the
 
 The artifact is versioned JSON validated at load time. Its top-level contract identifies the capability and target, declares typed inputs and outputs, stores the ordered steps, defines known business outcomes, and ends with an explicit success checkpoint. Metadata links it back to the discovery run without embedding the raw model transcript.
 
-Each step describes one action and its intent, timeout, optional retry budget, risk classification, and checkpoint. Targets carry an ordered list of locator candidates plus a uniqueness requirement. Inputs are referenced as `${inputs.member_id}` rather than captured values, and outputs may declare a semantic pattern; the balance contract, for example, refuses to accept the label “Current Balance” as though it were a dollar amount.
+Each step describes one action and its intent, enforced timeout, optional retry budget, risk classification, and checkpoint. Targets carry an ordered list of locator candidates plus a uniqueness requirement. Inputs are referenced as `${inputs.member_id}` rather than captured values, and outputs may declare a semantic pattern; the balance contract, for example, refuses to accept the label “Current Balance” as though it were a dollar amount. Validation also rejects duplicate identifiers, unknown template references, and outputs without exactly one extraction step.
 
 The schema is deliberately data rather than generated code. It can be reviewed, diffed, signed, migrated, or rejected before execution, and the replay engine never evaluates arbitrary source text. Semantic versioning applies to capabilities independently from `schemaVersion`, allowing the transport format and an individual workflow to evolve on different schedules.
 
@@ -22,7 +22,7 @@ The live comparison exposed an important boundary. Claude discovered five correc
 
 ## 3. Determinism & error handling
 
-Replay validates the artifact and invocation before touching the UI. It then executes steps in order, substitutes only declared templates, checks policy before every action, resolves locators in their recorded order, and fails on ambiguous matches. There is no model call, semantic search, or open-ended recovery in this path. Checkpoints confirm that navigation or clicks reached the expected state, while output types and patterns confirm that extraction returned the intended value.
+Replay validates the artifact and invocation before touching the UI. It then executes steps in order, substitutes only declared templates, checks policy before every action, resolves visible locators in their recorded order within the step's timeout, and fails on ambiguous matches. There is no model call, semantic search, or open-ended recovery in this path. Checkpoints confirm that navigation or clicks reached the expected state, while output completeness, types, and patterns confirm that extraction returned the intended value.
 
 The result contract separates `success`, `business_outcome`, and `failure`. A missing member is detected through a declared checkpoint and returned as `business_outcome/member_not_found`; it short-circuits retries because repeating a legitimate result cannot help. A transient host error is recoverable because the search step has a fixed two-attempt budget. The retry repeats the same recorded action after a fixed delay—it does not ask Claude to improvise.
 

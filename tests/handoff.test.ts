@@ -75,6 +75,7 @@ test("replay pauses, accepts a human repair, and retries the blocked step", asyn
     },
     fill: async () => {},
     extractText: async () => completed ? "ready" : "blocked",
+    isVisible: async () => completed,
     screenshot: async () => {},
     close: async () => {}
   };
