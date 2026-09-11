@@ -6,12 +6,12 @@ import type { Surface } from "../packages/surface/src/index.js";
 import { FileRunObserver, MemoryRunObserver, Redactor } from "../packages/observability/src/index.js";
 
 test("recursively redacts configured values and sensitive keys", () => {
-  const redactor = new Redactor(["12345", "sk-ant-example"]);
+  const redactor = new Redactor(["12345", "example-api-credential"]);
   assert.deepEqual(redactor.redact({
     memberId: "12345",
     authorization: "unlisted credential",
     url: "http://localhost/members/12345",
-    nested: { api_key: "sk-ant-example", note: "member 12345" }
+    nested: { api_key: "example-api-credential", note: "member 12345" }
   }), {
     memberId: "[REDACTED]",
     authorization: "[REDACTED]",

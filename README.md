@@ -1,52 +1,68 @@
 # Computer-Use Automation System
 
-A focused implementation of an LLM-driven UI discovery run that becomes a deterministic, reusable capability.
+This project gives an AI agent a safe way to operate software that has no API. Claude first works through a goal in a real browser, and the successful run becomes a typed JSON capability. Later invocations replay that capability in a fixed order without asking a model what to do.
 
-## Current milestone
+The demo uses a deliberately old-fashioned member-service application. The goal is to find a member, open their savings account, and return the displayed balance. The app also exposes controlled not-found, permission, timeout, and transient states so replay can be tested beyond the happy path.
 
-The repository currently contains a local legacy-style member-service target, capability contracts, a Playwright surface, and deterministic replay. A bounded discovery runner can use a replaceable decision provider to observe and operate the target, record successful actions as an artifact, and replay that artifact with different inputs.
+## Setup
 
-Copy `.env.example` to `.env` and provide an Anthropic API key only when running live discovery. The automated test suite injects a fake client and never contacts Anthropic.
-
-Run `npm run evidence:live` to perform one bounded Claude discovery and a model-free replay. Redacted logs, the generated artifact, token usage, and final screenshots are written under `evidence/live-run/`.
-
-Every discovery and replay action passes through a declarative policy that allowlists action types, origins, and routes. Steps are classified as read-only, reversible, or irreversible; the irreversible class cannot run without an explicit approval provider.
-
-Replay distinguishes successful outputs, declared business outcomes, and hard failures. Individual steps may opt into a small fixed retry budget for known recoverable conditions; retries repeat the same recorded action and never invoke a model.
-
-Hard failures can route into a same-session handoff controller. Automation pauses with contextual state and an optional screenshot, an identified operator controls the existing surface through an audited session, and replay resumes with one bounded retry after control is returned.
-
-Structured observers record run, step, retry, outcome, and failure events. The file observer recursively redacts configured values and sensitive keys before writing JSONL, and captures a screenshot when replay ends in a hard failure.
-
-## Run locally
+You need Node.js 20 or newer. Install the dependencies and Playwright's Chromium build:
 
 ```bash
 npm install
 npx playwright install chromium
-npm run dev:target
 ```
 
-Open `http://127.0.0.1:4173` and search for member `12345` or `67890`.
+No API key is required for deterministic replay or the offline discovery demo. For a live discovery run, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`; the default model is `claude-sonnet-5`. The key is loaded only at runtime, and `.env` is ignored by Git.
 
-## Reviewer demo
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | Live discovery only | Authenticates Claude API requests |
+| `ANTHROPIC_MODEL` | No | Overrides the default `claude-sonnet-5` model |
 
-The demo commands start and stop the target app automatically. First, discover a capability without an API key using the deterministic decision fixture:
+## Demo
+
+The commands below start and stop the local target automatically. First, run discovery with the offline scripted decision provider:
 
 ```bash
 npm run demo:discover -- --mode scripted --member-id 12345 --output output/discovered-capability.json
 ```
 
-Replay that artifact with a different input and no model in the loop:
+Then replay the saved capability with a different input. No model is invoked during this command:
 
 ```bash
 npm run demo:replay -- --artifact output/discovered-capability.json --member-id 67890
 ```
 
-With `ANTHROPIC_API_KEY` configured, replace `--mode scripted` with `--mode live` for genuine Claude discovery. To reproduce the declared not-found business outcome and its redacted evidence:
+To let Claude discover the same flow for real, change the mode after configuring the API key:
+
+```bash
+npm run demo:discover -- --mode live --member-id 12345 --output output/claude-capability.json
+```
+
+To demonstrate an expected business outcome rather than a crash:
 
 ```bash
 npm run demo:exceptional
 ```
+
+Expected results are `$4,281.36` for member `12345`, `$912.04` for member `67890`, and `member_not_found` for the exceptional command. Each run writes redacted JSONL events and a final screenshot beside its output.
+
+## How it fits together
+
+The code is a modular monolith with boundaries that mirror the production problem. `packages/surface` owns perception and interaction; `packages/discovery` owns the bounded observe-decide-act loop; `packages/contracts` defines the artifact and result schemas; and `packages/replay` executes saved capabilities. Policy, handoff, and observability sit beside those paths so neither Claude nor an artifact can bypass them.
+
+Claude receives compact text, control, and data-field observations and must return one schema-validated tool action. Successful actions are recorded, while raw runtime values are rejected when they should be input placeholders. Replay resolves locator candidates in a fixed order, requires unique matches, checks declared checkpoints and output patterns, and never calls the model.
+
+The hand-authored capability in `capabilities/read_savings_balance.json` shows how a discovered flow can be enriched with reviewed runtime knowledge. It declares a not-found outcome, a bounded transient retry, explicit risk labels, and additional checkpoints. The comparison in `evidence/artifact-comparison.md` shows why that enrichment matters: Claude independently found the reusable happy path, but one successful trace could not reveal exceptional states it never observed.
+
+## Evidence
+
+`evidence/live-run` contains a genuine six-turn Claude Sonnet 5 discovery, the generated artifact, redacted discovery log, token usage, screenshots, and a successful model-free replay using a different member. That canonical discovery used 12,353 input tokens and 1,261 output tokens.
+
+`evidence/exceptional-run` contains a deterministic replay that returns `member_not_found`, including its structured event log and final UI state. `evidence/artifact-comparison.md` and its JSON source provide the reproducible four-case comparison between the Claude-discovered and engineered artifacts.
+
+Regenerate the live evidence with `npm run evidence:live`, or regenerate the comparison without an API key using `npm run evidence:compare`. All member records are synthetic.
 
 ## Verification
 
@@ -54,3 +70,5 @@ npm run demo:exceptional
 npm test
 npm run typecheck
 ```
+
+The suite currently covers schema validation, model-response parsing, browser interaction, discovery and replay, policy enforcement, output correctness, runtime outcomes, redaction, and same-session handoff. Browser-level tests use the real local target; Anthropic tests inject a fake client and never make paid requests.
