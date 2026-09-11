@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev:target": "tsx apps/target/src/server.ts",
+    "demo:discover": "tsx scripts/cli.ts discover",
+    "demo:replay": "tsx scripts/cli.ts replay",
+    "demo:exceptional": "tsx scripts/cli.ts exceptional",
     "evidence:live": "tsx scripts/generate-live-evidence.ts",
     "test": "tsx --test tests/**/*.test.ts",
     "typecheck": "tsc --noEmit"

@@ -111,6 +111,14 @@ export class ReplayEngine {
         return;
       } catch (error) {
         lastError = error;
+        const outcome = await this.detectBusinessOutcome(artifact, inputs);
+        if (outcome) {
+          await this.observer.record({
+            runId, phase: "replay", type: "step_stopped_for_outcome", stepId: step.id,
+            details: { attempt, outcome: outcome.code }
+          });
+          throw error;
+        }
         await this.observer.record({
           runId, phase: "replay", type: attempt < maxAttempts ? "step_retrying" : "step_exhausted",
           stepId: step.id, details: { attempt, message: messageOf(error) }

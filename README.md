@@ -28,6 +28,28 @@ npm run dev:target
 
 Open `http://127.0.0.1:4173` and search for member `12345` or `67890`.
 
+## Reviewer demo
+
+The demo commands start and stop the target app automatically. First, discover a capability without an API key using the deterministic decision fixture:
+
+```bash
+npm run demo:discover -- --mode scripted --member-id 12345 --output output/discovered-capability.json
+```
+
+Replay that artifact with a different input and no model in the loop:
+
+```bash
+npm run demo:replay -- --artifact output/discovered-capability.json --member-id 67890
+```
+
+With `ANTHROPIC_API_KEY` configured, replace `--mode scripted` with `--mode live` for genuine Claude discovery. To reproduce the declared not-found business outcome and its redacted evidence:
+
+```bash
+npm run demo:exceptional
+```
+
+## Verification
+
 ```bash
 npm test
 npm run typecheck

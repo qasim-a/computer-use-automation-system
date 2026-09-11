@@ -1,4 +1,4 @@
-import { appendFile, mkdir } from "node:fs/promises";
+import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Surface } from "../../surface/src/index.js";
 
@@ -35,6 +35,7 @@ export class MemoryRunObserver implements RunObserver {
 
 export class FileRunObserver implements RunObserver {
   private readonly logPath: string;
+  private initialized = false;
 
   constructor(private readonly directory: string, private readonly redactor = new Redactor()) {
     this.logPath = resolve(directory, "events.jsonl");
@@ -43,7 +44,12 @@ export class FileRunObserver implements RunObserver {
   async record(event: Omit<RunEvent, "timestamp">): Promise<void> {
     await mkdir(dirname(this.logPath), { recursive: true });
     const safe = this.redactor.redact({ timestamp: new Date().toISOString(), ...event });
-    await appendFile(this.logPath, `${JSON.stringify(safe)}\n`, "utf8");
+    const line = `${JSON.stringify(safe)}\n`;
+    if (this.initialized) await appendFile(this.logPath, line, "utf8");
+    else {
+      await writeFile(this.logPath, line, "utf8");
+      this.initialized = true;
+    }
   }
 
   async captureFailure(surface: Surface, runId: string, stepId?: string): Promise<string> {

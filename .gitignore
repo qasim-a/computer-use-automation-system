@@ -3,4 +3,4 @@ dist/
 .env
 .DS_Store
 evidence/runs/
-
+output/
