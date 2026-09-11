@@ -57,6 +57,7 @@ export const stepSchema = z.discriminatedUnion("action", [
 
 export const capabilityArtifactSchema = z.object({
   schemaVersion: z.literal("1.0"),
+  lifecycle: z.enum(["draft", "approved"]).default("draft"),
   capability: z.object({
     name: identifier,
     version: z.string().regex(/^\d+\.\d+\.\d+$/),
@@ -78,8 +79,25 @@ export const capabilityArtifactSchema = z.object({
     checkpoint: checkpointSchema
   })).default([]),
   success: checkpointSchema,
-  metadata: z.object({ createdAt: z.string().datetime(), discoveryRunId: z.string().min(1) })
+  metadata: z.object({ createdAt: z.string().datetime(), discoveryRunId: z.string().min(1) }),
+  approval: z.object({
+    approvedAt: z.string().datetime(),
+    approvedBy: z.string().min(1),
+    artifactDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    stability: z.object({
+      totalRuns: z.number().int().positive(),
+      successfulRuns: z.number().int().nonnegative(),
+      successRate: z.number().min(0).max(1),
+      consistentOutputs: z.boolean()
+    })
+  }).optional()
 }).superRefine((artifact, context) => {
+  if (artifact.lifecycle === "approved" && !artifact.approval) {
+    context.addIssue({ code: "custom", path: ["approval"], message: "Approved artifacts require approval metadata" });
+  }
+  if (artifact.lifecycle === "draft" && artifact.approval) {
+    context.addIssue({ code: "custom", path: ["approval"], message: "Draft artifacts cannot contain approval metadata" });
+  }
   const inputNames = artifact.contract.inputs.map((input) => input.name);
   if (new Set(inputNames).size !== inputNames.length) {
     context.addIssue({ code: "custom", path: ["contract", "inputs"], message: "Input names must be unique" });

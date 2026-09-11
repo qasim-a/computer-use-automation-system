@@ -34,6 +34,13 @@ Then replay the saved capability with a different input. No model is invoked dur
 npm run demo:replay -- --artifact output/discovered-capability.json --member-id 67890
 ```
 
+Discovery artifacts start as drafts. To exercise the production gate, run three fresh-session replays, attach reviewer approval, and then require that approval during replay:
+
+```bash
+npm run demo:qualify -- --artifact output/discovered-capability.json --member-id 67890 --runs 3 --reviewer your_name --output output/approved-capability.json
+npm run demo:replay -- --artifact output/approved-capability.json --member-id 67890 --require-approval true
+```
+
 To let Claude discover the same flow for real, change the mode after configuring the API key:
 
 ```bash
@@ -66,7 +73,7 @@ The hand-authored capability in `capabilities/read_savings_balance.json` shows h
 
 `evidence/live-run` contains a genuine six-turn Claude Sonnet 5 discovery, the generated artifact, redacted discovery and replay logs, token usage, screenshots, and a successful model-free replay using a different member. That canonical discovery used 12,353 input tokens and 1,261 output tokens.
 
-`evidence/exceptional-run` contains a deterministic replay that returns `member_not_found`, including its structured event log and final UI state. `evidence/artifact-comparison.md` and its JSON source provide the reproducible four-case comparison between the Claude-discovered and engineered artifacts.
+`evidence/exceptional-run` contains a deterministic replay that returns `member_not_found`, including its structured event log and final UI state. `evidence/approval` demonstrates three-run qualification and an approval-gated replay. `evidence/artifact-comparison.md` and its JSON source provide the reproducible four-case comparison between the Claude-discovered and engineered artifacts.
 
 Regenerate the live evidence with `npm run evidence:live`, or regenerate the comparison without an API key using `npm run evidence:compare`. All member records are synthetic.
 

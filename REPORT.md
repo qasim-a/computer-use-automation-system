@@ -12,17 +12,17 @@ I chose a local member-service app instead of a public demo site. That makes the
 
 ## 2. Artifact schema
 
-The artifact is versioned JSON validated at load time. Its top-level contract identifies the capability and target, declares typed inputs and outputs, stores the ordered steps, defines known business outcomes, and ends with an explicit success checkpoint. Metadata links it back to the discovery run without embedding the raw model transcript.
+The artifact is versioned JSON validated at load time. Its top-level contract identifies the capability and target, declares typed inputs and outputs, stores the ordered steps, defines known business outcomes, and ends with an explicit success checkpoint. Metadata links it back to the discovery run without embedding the raw model transcript. Discovery emits a `draft`; qualification can promote it to `approved` with reviewer identity, timestamp, stability results, and a SHA-256 digest over the executable payload.
 
 Each step describes one action and its intent, enforced timeout, optional retry budget, risk classification, and checkpoint. Targets carry an ordered list of locator candidates plus a uniqueness requirement. Inputs are referenced as `${inputs.member_id}` rather than captured values, and outputs may declare a semantic pattern; the balance contract, for example, refuses to accept the label “Current Balance” as though it were a dollar amount. Validation also rejects duplicate identifiers, unknown template references, and outputs without exactly one extraction step.
 
-The schema is deliberately data rather than generated code. It can be reviewed, diffed, signed, migrated, or rejected before execution, and the replay engine never evaluates arbitrary source text. Semantic versioning applies to capabilities independently from `schemaVersion`, allowing the transport format and an individual workflow to evolve on different schedules.
+The schema is deliberately data rather than generated code. It can be reviewed, diffed, signed, migrated, or rejected before execution, and the replay engine never evaluates arbitrary source text. Production-style replay can require approval and rejects both drafts and artifacts changed after review. The default qualification policy requires three successful fresh-session runs with identical outputs; its thresholds are explicit inputs rather than a vague model confidence score.
 
 The live comparison exposed an important boundary. Claude discovered five correct, parameterized steps and a robust data-field selector, but its successful trace contained no knowledge of not-found or transient states. The engineered artifact adds that application knowledge through explicit outcomes, retry limits, risk labels, and stronger checkpoints. In a production system, I would make this a compile-and-review stage: model-discovered mechanics plus a versioned vendor/application profile become the candidate capability that a human approves.
 
 ## 3. Determinism & error handling
 
-Replay validates the artifact and invocation before touching the UI. It then executes steps in order, substitutes only declared templates, checks policy before every action, resolves visible locators in their recorded order within the step's timeout, and fails on ambiguous matches. There is no model call, semantic search, or open-ended recovery in this path. Checkpoints confirm that navigation or clicks reached the expected state, while output completeness, types, and patterns confirm that extraction returned the intended value.
+Replay validates the artifact, optional approval digest, and invocation before touching the UI. It then executes steps in order, substitutes only declared templates, checks policy before every action, resolves visible locators in their recorded order within the step's timeout, and fails on ambiguous matches. There is no model call, semantic search, or open-ended recovery in this path. Checkpoints confirm that navigation or clicks reached the expected state, while output completeness, types, and patterns confirm that extraction returned the intended value.
 
 The result contract separates `success`, `business_outcome`, and `failure`. A missing member is detected through a declared checkpoint and returned as `business_outcome/member_not_found`; it short-circuits retries because repeating a legitimate result cannot help. A transient host error is recoverable because the search step has a fixed two-attempt budget. The retry repeats the same recorded action after a fixed delay—it does not ask Claude to improvise.
 
@@ -57,6 +57,6 @@ This is still a prototype safety model. Regex-configured routes would become cen
 - I implemented one browser surface and documented the adapter migration instead of claiming legacy desktop support.
 - Handoff has a real ownership model and shared session, but no production operator console, authentication, or notification service.
 - Application profiles and tenant overlays compile into replay, but there is no registry, compatibility service, or fleet-wide health scoring.
-- Artifact approval, signing, stability scoring, and automatic schema migrations remain next steps after the core execution contract.
+- Asymmetric signing, durable approval storage, and automatic schema migrations remain beyond the local digest-based approval gate.
 
 I would build those in roughly that order. The current scope deliberately spends its depth on the load-bearing pieces: a genuine model-driven run, a reviewable artifact, deterministic replay, explicit runtime outcomes, enforceable safety, and a real handoff seam.

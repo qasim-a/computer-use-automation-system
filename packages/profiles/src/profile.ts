@@ -56,6 +56,8 @@ export function compileCapability(
   if (overlay && overlay.profileId !== profile.id) throw new Error(`Tenant overlay requires profile ${overlay.profileId}`);
 
   const compiled = structuredClone(artifact);
+  compiled.lifecycle = "draft";
+  delete compiled.approval;
   compiled.capability.target.appVersion = profile.appVersion;
   compiled.capability.target.entrypoint = overlay?.entrypoint ?? profile.defaultEntrypoint;
   const unmatched = new Set(Object.keys(overlay?.locatorOverrides ?? {}));

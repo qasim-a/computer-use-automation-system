@@ -7,6 +7,7 @@ import { ReplayEngine } from "../packages/replay/src/index.js";
 import { PlaywrightWebSurface } from "../packages/surface/src/index.js";
 import type { Surface } from "../packages/surface/src/index.js";
 import { HandoffController } from "../packages/handoff/src/index.js";
+import { approveArtifact, assessStability } from "../packages/approval/src/index.js";
 
 let server: Server;
 let origin: string;
@@ -31,6 +32,33 @@ test("replays a saved capability with no model in the loop", async () => {
     if (result.status === "success") assert.deepEqual(result.outputs, { current_balance: "$4,281.36" });
   } finally {
     await surface.close();
+  }
+});
+
+test("production replay requires intact approval metadata", async () => {
+  const draftSurface = await PlaywrightWebSurface.launch();
+  try {
+    const rejected = await new ReplayEngine(draftSurface, undefined, undefined, undefined, { requireApproval: true })
+      .run(artifact, { member_id: "12345" });
+    assert.equal(rejected.status, "failure");
+    if (rejected.status === "failure") assert.equal(rejected.error.code, "approval_required");
+    assert.equal((await draftSurface.observe()).url, "about:blank");
+  } finally {
+    await draftSurface.close();
+  }
+
+  const evidence = Array.from({ length: 3 }, (_, index) => ({
+    runId: `qualification-${index}`, capabilityName: "read_savings_balance", capabilityVersion: "1.0.0",
+    durationMs: 10, status: "success" as const, outputs: { current_balance: "$4,281.36" }
+  }));
+  const approved = approveArtifact(artifact, "qasim@example.test", assessStability(evidence));
+  const approvedSurface = await PlaywrightWebSurface.launch();
+  try {
+    const result = await new ReplayEngine(approvedSurface, undefined, undefined, undefined, { requireApproval: true })
+      .run(approved, { member_id: "12345" });
+    assert.equal(result.status, "success");
+  } finally {
+    await approvedSurface.close();
   }
 });
 

@@ -10,13 +10,17 @@ import { TargetResolutionError, type Surface } from "../../surface/src/index.js"
 import { ActionPolicy, PolicyViolationError } from "../../policy/src/index.js";
 import type { HandoffController } from "../../handoff/src/index.js";
 import { NoopRunObserver, type RunObserver } from "../../observability/src/index.js";
+import { verifyArtifactApproval } from "../../approval/src/index.js";
+
+export type ReplayOptions = { requireApproval?: boolean };
 
 export class ReplayEngine {
   constructor(
     private readonly surface: Surface,
     private readonly policy = ActionPolicy.localDevelopment(),
     private readonly handoff?: HandoffController,
-    private readonly observer: RunObserver = new NoopRunObserver()
+    private readonly observer: RunObserver = new NoopRunObserver(),
+    private readonly options: ReplayOptions = {}
   ) {}
 
   async run(untrustedArtifact: unknown, inputs: Record<string, unknown>): Promise<ReplayResult> {
@@ -28,6 +32,17 @@ export class ReplayEngine {
     } catch (error) {
       await this.observer.record({ runId, phase: "replay", type: "run_rejected", details: { code: "invalid_artifact" } });
       return this.failure(runId, "invalid_artifact", "Artifact validation failed", startedAt, undefined, error);
+    }
+
+    if (this.options.requireApproval) {
+      const approvalError = verifyArtifactApproval(artifact);
+      if (approvalError) {
+        await this.observer.record({
+          runId, phase: "replay", type: "run_rejected",
+          details: { code: "approval_required", message: approvalError }
+        });
+        return this.failure(runId, "approval_required", approvalError, startedAt, artifact);
+      }
     }
 
     const inputError = validateInputs(artifact, inputs);

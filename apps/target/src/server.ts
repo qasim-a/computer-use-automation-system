@@ -71,7 +71,7 @@ export function createRequestHandler() {
   const member = match?.[1] ? findMember(match[1]) : undefined;
   if (member) {
     response.end(html(`<h1>Savings Account</h1><table aria-label="Savings account">
-      <tr><td>Member</td><td>${member.name}</td></tr><tr><td>Account Type</td><td>Regular Savings</td></tr>
+      <tr><td>Member</td><td data-sensitive>${member.name}</td></tr><tr><td>Account Type</td><td>Regular Savings</td></tr>
       <tr><td>Current Balance</td><td data-field="current-balance">${member.savingsBalance}</td></tr></table>`));
     return;
   }

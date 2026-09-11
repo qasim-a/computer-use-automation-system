@@ -8,6 +8,7 @@
     "demo:discover": "tsx scripts/cli.ts discover",
     "demo:replay": "tsx scripts/cli.ts replay",
     "demo:exceptional": "tsx scripts/cli.ts exceptional",
+    "demo:qualify": "tsx scripts/cli.ts qualify",
     "evidence:live": "tsx scripts/generate-live-evidence.ts",
     "evidence:compare": "tsx scripts/compare-artifacts.ts",
     "test": "tsx --test tests/**/*.test.ts",

@@ -1,0 +1,12 @@
+{"timestamp":"2026-09-11T20:24:18.948Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"run_started","details":{"capability":"read_savings_balance","version":"1.0.0"}}
+{"timestamp":"2026-09-11T20:24:18.950Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"step_started","stepId":"open_members","details":{"action":"navigate","attempt":1,"maxAttempts":1}}
+{"timestamp":"2026-09-11T20:24:19.008Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"step_succeeded","stepId":"open_members","details":{"attempt":1}}
+{"timestamp":"2026-09-11T20:24:19.008Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"step_started","stepId":"enter_member_id","details":{"action":"fill","attempt":1,"maxAttempts":1}}
+{"timestamp":"2026-09-11T20:24:19.025Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"step_succeeded","stepId":"enter_member_id","details":{"attempt":1}}
+{"timestamp":"2026-09-11T20:24:19.025Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"step_started","stepId":"search_member","details":{"action":"click","attempt":1,"maxAttempts":2}}
+{"timestamp":"2026-09-11T20:24:19.093Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"step_succeeded","stepId":"search_member","details":{"attempt":1}}
+{"timestamp":"2026-09-11T20:24:19.093Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"step_started","stepId":"open_savings","details":{"action":"click","attempt":1,"maxAttempts":1}}
+{"timestamp":"2026-09-11T20:24:19.141Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"step_succeeded","stepId":"open_savings","details":{"attempt":1}}
+{"timestamp":"2026-09-11T20:24:19.141Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"step_started","stepId":"read_balance","details":{"action":"extract","attempt":1,"maxAttempts":1}}
+{"timestamp":"2026-09-11T20:24:19.167Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"step_succeeded","stepId":"read_balance","details":{"attempt":1}}
+{"timestamp":"2026-09-11T20:24:19.170Z","runId":"09f1cd16-58be-46cd-8dbd-baf7e0a76a8c","phase":"replay","type":"run_succeeded","details":{"outputs":{"current_balance":"$912.04"}}}

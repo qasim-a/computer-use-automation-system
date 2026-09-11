@@ -9,6 +9,12 @@ test("parses reviewer CLI commands and options", () => {
   });
 });
 
+test("parses artifact qualification options", () => {
+  assert.deepEqual(parseCliArgs(["qualify", "--runs", "3", "--reviewer", "qasim@example.test"]), {
+    command: "qualify", options: { runs: "3", reviewer: "qasim@example.test" }
+  });
+});
+
 test("rejects unknown commands and incomplete options", () => {
   assert.throws(() => parseCliArgs(["unknown"]), /Usage/);
   assert.throws(() => parseCliArgs(["replay", "--artifact"]), /Invalid option/);

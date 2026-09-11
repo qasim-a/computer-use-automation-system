@@ -44,7 +44,7 @@ try {
     throw new Error("Generated artifact contains a runtime input; refusing to persist unparameterized evidence");
   }
 
-  await discoverySurface.screenshot(resolve(evidenceDirectory, "discovery-final.png"));
+  await discoverySurface.screenshot(resolve(evidenceDirectory, "discovery-final.png"), { maskSensitive: true });
   await writeFile(resolve(evidenceDirectory, "artifact.json"), `${JSON.stringify(discovery.artifact, null, 2)}\n`);
   const events = discovery.turns.map((turn) => redact(JSON.stringify({
     runId: discovery.runId,
@@ -70,7 +70,7 @@ try {
     const replay = await new ReplayEngine(replaySurface, undefined, undefined, replayObserver)
       .run(discovery.artifact, { member_id: "67890" });
     if (replay.status !== "success") throw new Error(`Replay failed: ${JSON.stringify(replay)}`);
-    await replaySurface.screenshot(resolve(evidenceDirectory, "replay-final.png"));
+    await replaySurface.screenshot(resolve(evidenceDirectory, "replay-final.png"), { maskSensitive: true });
     await writeFile(resolve(evidenceDirectory, "replay.json"), `${redact(JSON.stringify(replay, null, 2))}\n`);
   } finally {
     await replaySurface.close();

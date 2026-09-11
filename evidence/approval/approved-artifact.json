@@ -1,0 +1,211 @@
+{
+  "schemaVersion": "1.0",
+  "lifecycle": "approved",
+  "capability": {
+    "name": "read_savings_balance",
+    "version": "1.0.0",
+    "description": "Find a member and return the current savings balance",
+    "target": {
+      "surface": "web",
+      "app": "northstar_core",
+      "appVersion": "1.x",
+      "entrypoint": "http://127.0.0.1:4173/members"
+    }
+  },
+  "contract": {
+    "inputs": [
+      {
+        "name": "member_id",
+        "type": "string",
+        "description": "Member number",
+        "required": true,
+        "sensitive": true
+      }
+    ],
+    "outputs": [
+      {
+        "name": "current_balance",
+        "type": "string",
+        "description": "Displayed savings balance",
+        "pattern": "^\\$[0-9,]+\\.[0-9]{2}$"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "open_members",
+      "description": "Open member search",
+      "risk": "read_only",
+      "timeoutMs": 10000,
+      "checkpoint": {
+        "kind": "url",
+        "matches": "/members(?:\\?.*)?$"
+      },
+      "action": "navigate",
+      "url": "${target.entrypoint}"
+    },
+    {
+      "id": "enter_member_id",
+      "description": "Enter the member number",
+      "risk": "reversible",
+      "timeoutMs": 10000,
+      "action": "fill",
+      "target": {
+        "key": "member_number",
+        "description": "Member Number input",
+        "locators": [
+          {
+            "strategy": "label",
+            "value": "Member Number",
+            "exact": true
+          },
+          {
+            "strategy": "css",
+            "value": "input[name=memberId]",
+            "exact": true
+          }
+        ],
+        "requireUnique": true
+      },
+      "value": "${inputs.member_id}"
+    },
+    {
+      "id": "search_member",
+      "description": "Submit member search",
+      "risk": "reversible",
+      "retry": {
+        "maxAttempts": 2,
+        "delayMs": 50
+      },
+      "timeoutMs": 10000,
+      "checkpoint": {
+        "kind": "visible",
+        "target": {
+          "key": "member_summary",
+          "description": "Member summary",
+          "locators": [
+            {
+              "strategy": "role",
+              "value": "Member Summary",
+              "role": "heading",
+              "exact": true
+            }
+          ],
+          "requireUnique": true
+        }
+      },
+      "action": "click",
+      "target": {
+        "key": "search_button",
+        "description": "Search button",
+        "locators": [
+          {
+            "strategy": "role",
+            "value": "Search",
+            "role": "button",
+            "exact": true
+          }
+        ],
+        "requireUnique": true
+      }
+    },
+    {
+      "id": "open_savings",
+      "description": "Open savings account",
+      "risk": "read_only",
+      "timeoutMs": 10000,
+      "action": "click",
+      "target": {
+        "key": "savings_link",
+        "description": "Savings account link",
+        "locators": [
+          {
+            "strategy": "role",
+            "value": "View Account",
+            "role": "link",
+            "exact": true
+          }
+        ],
+        "requireUnique": true
+      }
+    },
+    {
+      "id": "read_balance",
+      "description": "Read the current savings balance",
+      "risk": "read_only",
+      "timeoutMs": 10000,
+      "action": "extract",
+      "target": {
+        "key": "current_balance",
+        "description": "Current balance",
+        "locators": [
+          {
+            "strategy": "css",
+            "value": "[data-field=current-balance]",
+            "exact": true
+          },
+          {
+            "strategy": "text",
+            "value": "$4,281.36",
+            "exact": true
+          }
+        ],
+        "requireUnique": true
+      },
+      "output": "current_balance"
+    }
+  ],
+  "businessOutcomes": [
+    {
+      "code": "member_not_found",
+      "message": "No member exists for the supplied member number",
+      "checkpoint": {
+        "kind": "text",
+        "target": {
+          "key": "lookup_alert",
+          "description": "Member lookup alert",
+          "locators": [
+            {
+              "strategy": "css",
+              "value": "[role=alert]",
+              "exact": true
+            }
+          ],
+          "requireUnique": true
+        },
+        "matches": "No member found"
+      }
+    }
+  ],
+  "success": {
+    "kind": "visible",
+    "target": {
+      "key": "savings_table",
+      "description": "Savings account table",
+      "locators": [
+        {
+          "strategy": "role",
+          "value": "Savings account",
+          "role": "table",
+          "exact": true
+        }
+      ],
+      "requireUnique": true
+    }
+  },
+  "metadata": {
+    "createdAt": "2026-09-11T14:00:00.000Z",
+    "discoveryRunId": "bootstrap-artifact"
+  },
+  "approval": {
+    "approvedAt": "2026-09-11T20:24:18.209Z",
+    "approvedBy": "demonstration_reviewer",
+    "artifactDigest": "7984647dbc87d241ac8a5ae0219d789b2321fba20cc7dcebae4bc8c9436968db",
+    "stability": {
+      "totalRuns": 3,
+      "successfulRuns": 3,
+      "successRate": 1,
+      "consistentOutputs": true
+    }
+  }
+}

@@ -13,3 +13,5 @@ All member records are synthetic. Recreate this evidence with `npm run evidence:
 `exceptional-run/` demonstrates deterministic replay returning `member_not_found` as a declared business outcome, including its redacted event log and final UI screenshot. Recreate it with `npm run demo:exceptional` without an API key.
 
 `artifact-comparison.md` and its JSON source compare the engineered and Claude-discovered artifacts structurally and across a four-case replay matrix. Recreate them with `npm run evidence:compare` without an API key.
+
+`approval/` contains a draft qualification promoted after three consistent fresh-session replays, followed by a replay that requires and verifies the saved approval. It uses a demonstration reviewer identity and requires no API key.

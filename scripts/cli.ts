@@ -15,13 +15,14 @@ import { ReplayEngine } from "../packages/replay/src/index.js";
 import { PlaywrightWebSurface } from "../packages/surface/src/index.js";
 import { compileCapability } from "../packages/profiles/src/index.js";
 import { ActionPolicy } from "../packages/policy/src/index.js";
+import { approveArtifact, assessStability } from "../packages/approval/src/index.js";
 
 type CliOptions = Record<string, string>;
 
 export function parseCliArgs(arguments_: string[]): { command: string; options: CliOptions } {
   const [command, ...rest] = arguments_;
-  if (!command || !["discover", "replay", "exceptional"].includes(command)) {
-    throw new Error("Usage: cli.ts <discover|replay|exceptional> [--key value]");
+  if (!command || !["discover", "replay", "exceptional", "qualify"].includes(command)) {
+    throw new Error("Usage: cli.ts <discover|replay|exceptional|qualify> [--key value]");
   }
   const options: CliOptions = {};
   for (let index = 0; index < rest.length; index += 2) {
@@ -40,6 +41,7 @@ export async function runCli(arguments_: string[]): Promise<unknown> {
   const server = await startTargetServer(port);
   try {
     if (command === "discover") return await discover(options, port);
+    if (command === "qualify") return await qualify(options, port);
     if (command === "replay") return await replay(options, port, command);
     return await replay({
       ...options,
@@ -70,7 +72,7 @@ async function discover(options: CliOptions, port: number) {
     );
     await mkdir(dirname(output), { recursive: true });
     await writeFile(output, `${JSON.stringify(result.artifact, null, 2)}\n`);
-    await surface.screenshot(resolve(evidenceDirectory, "final.png"));
+    await surface.screenshot(resolve(evidenceDirectory, "final.png"), { maskSensitive: true });
     return { status: "success", mode, artifact: output, runId: result.runId, outputs: result.outputs };
   } finally {
     await surface.close();
@@ -91,20 +93,48 @@ async function replay(options: CliOptions, port: number, command: string) {
     artifact = compiled.artifact;
     policy = new ActionPolicy(compiled.policy);
   }
-  if (artifact?.capability?.target && !options.profile) {
+  if (artifact?.capability?.target && !options.profile && artifact.lifecycle !== "approved") {
     artifact.capability.target.entrypoint = `http://127.0.0.1:${port}/members`;
   }
   const observer = new FileRunObserver(evidenceDirectory, new Redactor([memberId]));
   const surface = await PlaywrightWebSurface.launch({ headless: options.headless !== "false" });
   try {
-    const result = await new ReplayEngine(surface, policy, undefined, observer).run(artifact, { member_id: memberId });
+    const requireApproval = options["require-approval"] === "true";
+    const result = await new ReplayEngine(surface, policy, undefined, observer, { requireApproval })
+      .run(artifact, { member_id: memberId });
     await mkdir(dirname(output), { recursive: true });
     await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
-    await surface.screenshot(resolve(evidenceDirectory, "final.png"));
+    await surface.screenshot(resolve(evidenceDirectory, "final.png"), { maskSensitive: true });
     return { ...result, result: output };
   } finally {
     await surface.close();
   }
+}
+
+async function qualify(options: CliOptions, port: number) {
+  const artifactPath = resolve(options.artifact ?? "output/discovered-capability.json");
+  const output = resolve(options.output ?? "output/approved-capability.json");
+  const memberId = options["member-id"] ?? "67890";
+  const reviewer = options.reviewer;
+  if (!reviewer) throw new Error("--reviewer is required for qualification");
+  const runCount = Number(options.runs ?? 3);
+  if (!Number.isInteger(runCount) || runCount < 1 || runCount > 20) throw new Error("--runs must be an integer from 1 to 20");
+  const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+  artifact.capability.target.entrypoint = `http://127.0.0.1:${port}/members`;
+  const results = [];
+  for (let run = 0; run < runCount; run += 1) {
+    const surface = await PlaywrightWebSurface.launch({ headless: options.headless !== "false" });
+    try {
+      results.push(await new ReplayEngine(surface).run(artifact, { member_id: memberId }));
+    } finally {
+      await surface.close();
+    }
+  }
+  const stability = assessStability(results);
+  const approved = approveArtifact(artifact, reviewer, stability);
+  await mkdir(dirname(output), { recursive: true });
+  await writeFile(output, `${JSON.stringify(approved, null, 2)}\n`);
+  return { status: "approved", artifact: output, stability };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
