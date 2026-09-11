@@ -7,7 +7,7 @@
   "defaultEntrypoint": "http://127.0.0.1:4173/members",
   "policy": {
     "allowedOriginPatterns": ["^http://(127\\.0\\.0\\.1|localhost)(:\\d+)?$"],
-    "allowedPathPatterns": ["^/members(?:/|$)"],
+    "allowedPathPatterns": ["^/members(?:/|$)", "^/tenant-two/members(?:/|$)"],
     "allowedActions": ["navigate", "click", "fill", "extract", "wait"],
     "requireApprovalFor": ["irreversible"]
   }

@@ -2,11 +2,16 @@
   "schemaVersion": "1.0",
   "tenantId": "demo_credit_union",
   "profileId": "northstar_core_v1",
-  "entrypoint": "http://127.0.0.1:4173/members",
+  "entrypoint": "http://127.0.0.1:4173/tenant-two/members",
   "locatorOverrides": {
     "member_number": [
-      { "strategy": "label", "value": "Member Number", "exact": true },
-      { "strategy": "css", "value": "input[name=memberId]", "exact": true }
-    ]
+      { "strategy": "label", "value": "Customer ID", "exact": true },
+      { "strategy": "css", "value": "input[name=customerId]", "exact": true }
+    ],
+    "search_button": [{ "strategy": "role", "role": "button", "value": "Find Customer", "exact": true }],
+    "member_summary": [{ "strategy": "role", "role": "heading", "value": "Customer Overview", "exact": true }],
+    "savings_link": [{ "strategy": "role", "role": "link", "value": "Open Deposit", "exact": true }],
+    "current_balance": [{ "strategy": "css", "value": "[data-field=available-balance]", "exact": true }],
+    "savings_table": [{ "strategy": "role", "role": "table", "value": "Deposit details", "exact": true }]
   }
 }

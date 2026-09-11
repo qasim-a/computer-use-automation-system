@@ -15,3 +15,5 @@ All member records are synthetic. Recreate this evidence with `npm run evidence:
 `artifact-comparison.md` and its JSON source compare the engineered and Claude-discovered artifacts structurally and across a four-case replay matrix. Recreate them with `npm run evidence:compare` without an API key.
 
 `approval/` contains a draft qualification promoted after three consistent fresh-session replays, followed by a replay that requires and verifies the saved approval. It uses a demonstration reviewer identity and requires no API key.
+
+`cross-tenant/` replays one unchanged base artifact against two visibly different variants. The second run changes its route family, labels, navigation text, and output selectors through the reviewed tenant overlay; both runs return the same typed result without discovery or model use.

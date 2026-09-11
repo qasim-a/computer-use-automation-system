@@ -12,12 +12,26 @@ button,a.button{display:inline-block;background:#315b86;color:#fff;border:0;padd
 .notice{padding:10px;border:1px solid #b42318;background:#fef3f2;color:#912018}.muted{color:#667085}
 </style></head><body><div class="shell"><div class="bar">Northstar Core Banking — Member Service</div><div class="content">${body}</div></div></body></html>`;
 
-const searchPage = (message = "", memberId = "", scenario = "") => html(`
+type TenantVariant = {
+  basePath: string;
+  idLabel: string;
+  idField: string;
+  searchLabel: string;
+};
+
+const baseTenant: TenantVariant = {
+  basePath: "", idLabel: "Member Number", idField: "memberId", searchLabel: "Search"
+};
+const secondTenant: TenantVariant = {
+  basePath: "/tenant-two", idLabel: "Customer ID", idField: "customerId", searchLabel: "Find Customer"
+};
+
+const searchPage = (variant: TenantVariant, message = "", memberId = "", scenario = "") => html(`
   <p class="muted">Internal servicing console</p>${message}
-  <form method="get" action="/members/search">
-    <table><tr><td><label for="member-number">Member Number</label></td>
-    <td><input id="member-number" name="memberId" value="${memberId}" inputmode="numeric" autocomplete="off"></td>
-    <td><button type="submit">Search</button></td></tr></table>
+  <form method="get" action="${variant.basePath}/members/search">
+    <table><tr><td><label for="member-number">${variant.idLabel}</label></td>
+    <td><input id="member-number" name="${variant.idField}" value="${memberId}" inputmode="numeric" autocomplete="off"></td>
+    <td><button type="submit">${variant.searchLabel}</button></td></tr></table>
     ${scenario ? `<input type="hidden" name="scenario" value="${scenario}">` : ""}
   </form>`);
 
@@ -25,22 +39,24 @@ export function createRequestHandler() {
   const transientAttempts = new Map<string, number>();
   return function requestHandler(request: IncomingMessage, response: ServerResponse): void {
   const url = new URL(request.url ?? "/", "http://localhost");
+  const variant = url.pathname.startsWith(secondTenant.basePath) ? secondTenant : baseTenant;
+  const route = variant === secondTenant ? url.pathname.slice(secondTenant.basePath.length) || "/" : url.pathname;
   response.setHeader("content-type", "text/html; charset=utf-8");
 
-  if (url.pathname === "/" || url.pathname === "/members") {
-    response.end(searchPage("", "", url.searchParams.get("scenario") ?? ""));
+  if (route === "/" || route === "/members") {
+    response.end(searchPage(variant, "", "", url.searchParams.get("scenario") ?? ""));
     return;
   }
 
-  if (url.pathname === "/members/search") {
-    const memberId = url.searchParams.get("memberId")?.trim() ?? "";
+  if (route === "/members/search") {
+    const memberId = url.searchParams.get(variant.idField)?.trim() ?? "";
     const scenario = url.searchParams.get("scenario");
     if (scenario === "transient") {
       const attempts = transientAttempts.get(memberId) ?? 0;
       transientAttempts.set(memberId, attempts + 1);
       if (attempts === 0) {
         response.statusCode = 503;
-        response.end(searchPage('<div class="notice" role="alert">Temporary host error. Retry the search.</div>', memberId, scenario));
+        response.end(searchPage(variant, '<div class="notice" role="alert">Temporary host error. Retry the search.</div>', memberId, scenario));
         return;
       }
     }
@@ -58,21 +74,28 @@ export function createRequestHandler() {
     const member = findMember(memberId);
     if (!member) {
       response.statusCode = 404;
-      response.end(searchPage('<div class="notice" role="alert">No member found for that number.</div>', memberId, scenario ?? ""));
+      response.end(searchPage(variant, '<div class="notice" role="alert">No member found for that number.</div>', memberId, scenario ?? ""));
       return;
     }
-    response.end(html(`<h1>Member Summary</h1><table aria-label="Member summary">
+    const summaryHeading = variant === secondTenant ? "Customer Overview" : "Member Summary";
+    const summaryLabel = variant === secondTenant ? "Customer overview" : "Member summary";
+    const savingsLink = variant === secondTenant ? "Open Deposit" : "View Account";
+    response.end(html(`<h1>${summaryHeading}</h1><table aria-label="${summaryLabel}">
       <tr><td>Member Number</td><td data-sensitive>${member.id}</td></tr><tr><td>Name</td><td data-sensitive>${member.name}</td></tr>
-      <tr><td>Savings</td><td><a class="button" href="/members/${member.id}/savings">View Account</a></td></tr></table>`));
+      <tr><td>Savings</td><td><a class="button" href="${variant.basePath}/members/${member.id}/savings">${savingsLink}</a></td></tr></table>`));
     return;
   }
 
-  const match = url.pathname.match(/^\/members\/(\d+)\/savings$/);
+  const match = route.match(/^\/members\/(\d+)\/savings$/);
   const member = match?.[1] ? findMember(match[1]) : undefined;
   if (member) {
-    response.end(html(`<h1>Savings Account</h1><table aria-label="Savings account">
+    const accountHeading = variant === secondTenant ? "Deposit Details" : "Savings Account";
+    const accountLabel = variant === secondTenant ? "Deposit details" : "Savings account";
+    const balanceField = variant === secondTenant ? "available-balance" : "current-balance";
+    const balanceLabel = variant === secondTenant ? "Available Balance" : "Current Balance";
+    response.end(html(`<h1>${accountHeading}</h1><table aria-label="${accountLabel}">
       <tr><td>Member</td><td data-sensitive>${member.name}</td></tr><tr><td>Account Type</td><td>Regular Savings</td></tr>
-      <tr><td>Current Balance</td><td data-field="current-balance">${member.savingsBalance}</td></tr></table>`));
+      <tr><td>${balanceLabel}</td><td data-field="${balanceField}">${member.savingsBalance}</td></tr></table>`));
     return;
   }
 

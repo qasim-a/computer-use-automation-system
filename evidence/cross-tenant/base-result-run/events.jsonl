@@ -1,0 +1,12 @@
+{"timestamp":"2026-09-11T20:31:47.765Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"run_started","details":{"capability":"read_savings_balance","version":"1.0.0"}}
+{"timestamp":"2026-09-11T20:31:47.766Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"step_started","stepId":"open_members","details":{"action":"navigate","attempt":1,"maxAttempts":1}}
+{"timestamp":"2026-09-11T20:31:47.880Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"step_succeeded","stepId":"open_members","details":{"attempt":1}}
+{"timestamp":"2026-09-11T20:31:47.880Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"step_started","stepId":"enter_member_id","details":{"action":"fill","attempt":1,"maxAttempts":1}}
+{"timestamp":"2026-09-11T20:31:47.912Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"step_succeeded","stepId":"enter_member_id","details":{"attempt":1}}
+{"timestamp":"2026-09-11T20:31:47.913Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"step_started","stepId":"search_member","details":{"action":"click","attempt":1,"maxAttempts":2}}
+{"timestamp":"2026-09-11T20:31:47.985Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"step_succeeded","stepId":"search_member","details":{"attempt":1}}
+{"timestamp":"2026-09-11T20:31:47.985Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"step_started","stepId":"open_savings","details":{"action":"click","attempt":1,"maxAttempts":1}}
+{"timestamp":"2026-09-11T20:31:48.037Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"step_succeeded","stepId":"open_savings","details":{"attempt":1}}
+{"timestamp":"2026-09-11T20:31:48.037Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"step_started","stepId":"read_balance","details":{"action":"extract","attempt":1,"maxAttempts":1}}
+{"timestamp":"2026-09-11T20:31:48.062Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"step_succeeded","stepId":"read_balance","details":{"attempt":1}}
+{"timestamp":"2026-09-11T20:31:48.065Z","runId":"26afc39f-1faa-400b-8376-4ad4431fda89","phase":"replay","type":"run_succeeded","details":{"outputs":{"current_balance":"$912.04"}}}

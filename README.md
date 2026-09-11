@@ -53,7 +53,7 @@ To demonstrate an expected business outcome rather than a crash:
 npm run demo:exceptional
 ```
 
-The same replay can be compiled for a tenant through a reviewed application profile and locator overlay:
+The same replay can be compiled for a visibly different tenant through a reviewed application profile and locator overlay:
 
 ```bash
 npm run demo:replay -- --artifact capabilities/read_savings_balance.json --profile profiles/northstar_core.profile.json --overlay profiles/demo_credit_union.overlay.json --member-id 67890
@@ -73,7 +73,7 @@ The hand-authored capability in `capabilities/read_savings_balance.json` shows h
 
 `evidence/live-run` contains a genuine six-turn Claude Sonnet 5 discovery, the generated artifact, redacted discovery and replay logs, token usage, screenshots, and a successful model-free replay using a different member. That canonical discovery used 12,353 input tokens and 1,261 output tokens.
 
-`evidence/exceptional-run` contains a deterministic replay that returns `member_not_found`, including its structured event log and final UI state. `evidence/approval` demonstrates three-run qualification and an approval-gated replay. `evidence/artifact-comparison.md` and its JSON source provide the reproducible four-case comparison between the Claude-discovered and engineered artifacts.
+`evidence/exceptional-run` contains a deterministic replay that returns `member_not_found`, including its structured event log and final UI state. `evidence/approval` demonstrates three-run qualification and an approval-gated replay. `evidence/cross-tenant` proves that the unchanged base artifact works against a second variant with different routes, labels, navigation, and output selectors. The artifact comparison files provide a reproducible four-case comparison between the Claude-discovered and engineered artifacts.
 
 Regenerate the live evidence with `npm run evidence:live`, or regenerate the comparison without an API key using `npm run evidence:compare`. All member records are synthetic.
 

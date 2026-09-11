@@ -1,0 +1,10 @@
+{
+  "runId": "26afc39f-1faa-400b-8376-4ad4431fda89",
+  "capabilityName": "read_savings_balance",
+  "capabilityVersion": "1.0.0",
+  "durationMs": 306.40333299999986,
+  "status": "success",
+  "outputs": {
+    "current_balance": "$912.04"
+  }
+}

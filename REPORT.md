@@ -32,7 +32,9 @@ Anything not declared as an outcome or recovered inside its budget becomes a har
 
 The main portability seam is `Surface`. The artifact speaks in actions, targets, checkpoints, and outputs; the adapter decides how those concepts map to a browser. A legacy-web adapter could add frame paths, table-relative anchors, or image regions. A desktop adapter could resolve the same target descriptions through an accessibility tree or OS automation. The current schema fixes `surface` to `web`, so adding desktop support would require a versioned discriminated target union; I left that migration explicit instead of pretending desktop already works.
 
-For multi-tenant reuse, an application profile identifies the app and compatible version, supplies a default entrypoint, and owns the runtime policy. A validated tenant overlay can replace the entrypoint and locators addressed through stable target keys; the compiler rejects incompatible profiles and unknown keys before replay. Runtime data stays in invocation parameters, not overlays, so the same workflow does not need to be rediscovered or rebuilt for each institution.
+For multi-tenant reuse, an application profile identifies the app and compatible version, supplies a default entrypoint, and owns the runtime policy. A validated tenant overlay can replace the entrypoint and locators addressed through stable target keys; the compiler rejects incompatible profiles and unknown keys before replay. Concrete member values remain `${inputs.member_id}`, while tenant route prefixes live in the entrypoint rather than being captured in steps.
+
+The cross-tenant evidence exercises this seam rather than only describing it. One unchanged base artifact runs against the original `/members` UI and a second `/tenant-two/members` variant whose identifier label, search button, summary heading, account link, final table, and balance selector all differ. The overlay changes only those tenant facts; both deterministic runs return the same typed balance without rediscovery or model use.
 
 The same mechanism handles controlled drift. Replay evidence can distinguish a business error from a selector/checkpoint failure, while aggregate replay results reveal whether a failure is isolated or shared across a vendor version. This supports reuse across institutions without forcing either one brittle global artifact or a full re-recording for every tenant.
 
@@ -56,7 +58,7 @@ This is still a prototype safety model. Regex-configured routes would become cen
 
 - I implemented one browser surface and documented the adapter migration instead of claiming legacy desktop support.
 - Handoff has a real ownership model and shared session, but no production operator console, authentication, or notification service.
-- Application profiles and tenant overlays compile into replay, but there is no registry, compatibility service, or fleet-wide health scoring.
+- Application profiles and tenant overlays are exercised across two variants, but there is no registry, compatibility service, or fleet-wide health aggregation.
 - Asymmetric signing, durable approval storage, and automatic schema migrations remain beyond the local digest-based approval gate.
 
 I would build those in roughly that order. The current scope deliberately spends its depth on the load-bearing pieces: a genuine model-driven run, a reviewable artifact, deterministic replay, explicit runtime outcomes, enforceable safety, and a real handoff seam.
