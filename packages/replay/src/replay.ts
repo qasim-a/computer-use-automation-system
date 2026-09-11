@@ -117,6 +117,14 @@ export class ReplayEngine {
         return;
       } catch (error) {
         lastError = error;
+        const failure = classifyFailure(error);
+        if (!isRecoverable(failure.code)) {
+          await this.observer.record({
+            runId, phase: "replay", type: "step_not_recoverable", stepId: step.id,
+            details: { attempt, code: failure.code, message: failure.message }
+          });
+          throw error;
+        }
         const outcome = await this.detectBusinessOutcome(artifact, inputs);
         if (outcome) {
           await this.observer.record({
@@ -342,4 +350,8 @@ function classifyFailure(error: unknown): FailureDetails {
     return { code: "timeout", message: error.message };
   }
   return { code: "action_failed", message: messageOf(error) };
+}
+
+function isRecoverable(code: string): boolean {
+  return code === "locator_failed" || code === "checkpoint_failed" || code === "timeout" || code === "action_failed";
 }

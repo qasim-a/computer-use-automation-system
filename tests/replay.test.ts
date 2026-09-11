@@ -6,6 +6,7 @@ import { startTargetServer } from "../apps/target/src/server.js";
 import { ReplayEngine } from "../packages/replay/src/index.js";
 import { PlaywrightWebSurface } from "../packages/surface/src/index.js";
 import type { Surface } from "../packages/surface/src/index.js";
+import { HandoffController } from "../packages/handoff/src/index.js";
 
 let server: Server;
 let origin: string;
@@ -123,6 +124,23 @@ test("policy rejection prevents replay from performing the navigation", async ()
     assert.match(result.error.message, /Origin is not allowed/);
   }
   assert.equal(navigations, 0);
+});
+
+test("non-recoverable policy failures never enter human handoff", async () => {
+  const surface: Surface = {
+    navigate: async () => {},
+    observe: async () => ({ url: "about:blank", title: "", visibleText: "", controls: [], dataFields: [] }),
+    click: async () => {}, fill: async () => {}, extractText: async () => "", isVisible: async () => true,
+    screenshot: async () => {}, close: async () => {}
+  };
+  const denied = structuredClone(artifact);
+  denied.capability.target.entrypoint = "https://example.com/members";
+  const handoff = new HandoffController(surface);
+  const result = await new ReplayEngine(surface, undefined, handoff).run(denied, { member_id: "12345" });
+  assert.equal(result.status, "failure");
+  if (result.status === "failure") assert.equal(result.error.code, "policy_denied");
+  assert.equal(handoff.ownership(), "automation");
+  assert.equal(handoff.currentRequest(), undefined);
 });
 
 test("classifies unresolved locators separately from other hard failures", async () => {
