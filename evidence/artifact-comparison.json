@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-09-11T17:54:33.078Z",
+  "structures": {
+    "engineered": {
+      "steps": 5,
+      "locatorCandidates": 6,
+      "locatorStrategies": [
+        "css",
+        "label",
+        "role",
+        "text"
+      ],
+      "parameterizedFills": 1,
+      "checkpoints": 3,
+      "explicitRiskLabels": 5,
+      "retryingSteps": 1,
+      "businessOutcomes": 1
+    },
+    "claude": {
+      "steps": 5,
+      "locatorCandidates": 6,
+      "locatorStrategies": [
+        "css",
+        "label",
+        "role",
+        "text"
+      ],
+      "parameterizedFills": 1,
+      "checkpoints": 1,
+      "explicitRiskLabels": 0,
+      "retryingSteps": 0,
+      "businessOutcomes": 0
+    }
+  },
+  "replayMatrix": {
+    "engineered": {
+      "primary_member": {
+        "status": "success",
+        "detail": "$4,281.36"
+      },
+      "alternate_member": {
+        "status": "success",
+        "detail": "$912.04"
+      },
+      "member_not_found": {
+        "status": "business_outcome",
+        "detail": "member_not_found"
+      },
+      "transient_host_error": {
+        "status": "success",
+        "detail": "$4,281.36"
+      }
+    },
+    "claude": {
+      "primary_member": {
+        "status": "success",
+        "detail": "$4,281.36"
+      },
+      "alternate_member": {
+        "status": "success",
+        "detail": "$912.04"
+      },
+      "member_not_found": {
+        "status": "failure",
+        "detail": "click_view_account: Could not uniquely resolve View Account link for Savings"
+      },
+      "transient_host_error": {
+        "status": "failure",
+        "detail": "click_view_account: Could not uniquely resolve View Account link for Savings"
+      }
+    }
+  }
+}

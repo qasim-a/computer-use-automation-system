@@ -34,6 +34,7 @@
       "id": "open_members",
       "action": "navigate",
       "description": "Open member search",
+      "risk": "read_only",
       "url": "${target.entrypoint}",
       "timeoutMs": 10000,
       "checkpoint": { "kind": "url", "matches": "/members(?:\\?.*)?$" }
@@ -42,6 +43,7 @@
       "id": "enter_member_id",
       "action": "fill",
       "description": "Enter the member number",
+      "risk": "reversible",
       "value": "${inputs.member_id}",
       "timeoutMs": 10000,
       "target": {
@@ -57,6 +59,7 @@
       "id": "search_member",
       "action": "click",
       "description": "Submit member search",
+      "risk": "reversible",
       "timeoutMs": 10000,
       "retry": { "maxAttempts": 2, "delayMs": 50 },
       "target": {
@@ -77,6 +80,7 @@
       "id": "open_savings",
       "action": "click",
       "description": "Open savings account",
+      "risk": "read_only",
       "timeoutMs": 10000,
       "target": {
         "description": "Savings account link",
@@ -88,6 +92,7 @@
       "id": "read_balance",
       "action": "extract",
       "description": "Read the current savings balance",
+      "risk": "read_only",
       "timeoutMs": 10000,
       "output": "current_balance",
       "target": {

@@ -9,6 +9,7 @@
     "demo:replay": "tsx scripts/cli.ts replay",
     "demo:exceptional": "tsx scripts/cli.ts exceptional",
     "evidence:live": "tsx scripts/generate-live-evidence.ts",
+    "evidence:compare": "tsx scripts/compare-artifacts.ts",
     "test": "tsx --test tests/**/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
