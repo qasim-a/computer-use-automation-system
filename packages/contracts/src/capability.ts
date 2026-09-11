@@ -22,7 +22,7 @@ export const locatorSchema = z.object({
   }
 });
 
-const targetSchema = z.object({
+export const targetSchema = z.object({
   description: z.string().min(1),
   locators: z.array(locatorSchema).min(1),
   requireUnique: z.boolean().default(true)
@@ -106,4 +106,5 @@ export const replayResultSchema = z.discriminatedUnion("status", [
 
 export type CapabilityArtifact = z.infer<typeof capabilityArtifactSchema>;
 export type CapabilityStep = z.infer<typeof stepSchema>;
+export type ControlTarget = z.infer<typeof targetSchema>;
 export type ReplayResult = z.infer<typeof replayResultSchema>;
