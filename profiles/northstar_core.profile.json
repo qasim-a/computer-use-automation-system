@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "id": "northstar_core_v1",
+  "app": "northstar_core",
+  "appVersion": "1.x",
+  "surface": "web",
+  "defaultEntrypoint": "http://127.0.0.1:4173/members",
+  "policy": {
+    "allowedOriginPatterns": ["^http://(127\\.0\\.0\\.1|localhost)(:\\d+)?$"],
+    "allowedPathPatterns": ["^/members(?:/|$)"],
+    "allowedActions": ["navigate", "click", "fill", "extract", "wait"],
+    "requireApprovalFor": ["irreversible"]
+  }
+}

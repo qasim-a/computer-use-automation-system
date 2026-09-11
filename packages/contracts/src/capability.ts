@@ -23,6 +23,7 @@ export const locatorSchema = z.object({
 });
 
 export const targetSchema = z.object({
+  key: identifier.optional(),
   description: z.string().min(1),
   locators: z.array(locatorSchema).min(1),
   requireUnique: z.boolean().default(true)
@@ -60,7 +61,9 @@ export const capabilityArtifactSchema = z.object({
     name: identifier,
     version: z.string().regex(/^\d+\.\d+\.\d+$/),
     description: z.string().min(1),
-    target: z.object({ surface: z.literal("web"), app: identifier, entrypoint: z.string().url() })
+    target: z.object({
+      surface: z.literal("web"), app: identifier, appVersion: z.string().min(1).optional(), entrypoint: z.string().url()
+    })
   }),
   contract: z.object({
     inputs: z.array(parameterSchema),

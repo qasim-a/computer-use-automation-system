@@ -7,6 +7,7 @@
     "target": {
       "surface": "web",
       "app": "northstar_core",
+      "appVersion": "1.x",
       "entrypoint": "http://127.0.0.1:4173/members"
     }
   },
@@ -47,6 +48,7 @@
       "value": "${inputs.member_id}",
       "timeoutMs": 10000,
       "target": {
+        "key": "member_number",
         "description": "Member Number input",
         "locators": [
           { "strategy": "label", "value": "Member Number", "exact": true },
@@ -63,6 +65,7 @@
       "timeoutMs": 10000,
       "retry": { "maxAttempts": 2, "delayMs": 50 },
       "target": {
+        "key": "search_button",
         "description": "Search button",
         "locators": [{ "strategy": "role", "role": "button", "value": "Search", "exact": true }],
         "requireUnique": true
@@ -70,6 +73,7 @@
       "checkpoint": {
         "kind": "visible",
         "target": {
+          "key": "member_summary",
           "description": "Member summary",
           "locators": [{ "strategy": "role", "role": "heading", "value": "Member Summary", "exact": true }],
           "requireUnique": true
@@ -83,6 +87,7 @@
       "risk": "read_only",
       "timeoutMs": 10000,
       "target": {
+        "key": "savings_link",
         "description": "Savings account link",
         "locators": [{ "strategy": "role", "role": "link", "value": "View Account", "exact": true }],
         "requireUnique": true
@@ -96,6 +101,7 @@
       "timeoutMs": 10000,
       "output": "current_balance",
       "target": {
+        "key": "current_balance",
         "description": "Current balance",
         "locators": [
           { "strategy": "css", "value": "[data-field=current-balance]", "exact": true },
@@ -112,6 +118,7 @@
       "checkpoint": {
         "kind": "text",
         "target": {
+          "key": "lookup_alert",
           "description": "Member lookup alert",
           "locators": [{ "strategy": "css", "value": "[role=alert]", "exact": true }],
           "requireUnique": true
@@ -123,6 +130,7 @@
   "success": {
     "kind": "visible",
     "target": {
+      "key": "savings_table",
       "description": "Savings account table",
       "locators": [{ "strategy": "role", "role": "table", "value": "Savings account", "exact": true }],
       "requireUnique": true

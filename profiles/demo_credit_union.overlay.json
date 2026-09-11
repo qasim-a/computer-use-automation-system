@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "tenantId": "demo_credit_union",
+  "profileId": "northstar_core_v1",
+  "entrypoint": "http://127.0.0.1:4173/members",
+  "locatorOverrides": {
+    "member_number": [
+      { "strategy": "label", "value": "Member Number", "exact": true },
+      { "strategy": "css", "value": "input[name=memberId]", "exact": true }
+    ]
+  }
+}

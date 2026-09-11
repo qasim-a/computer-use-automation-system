@@ -46,6 +46,12 @@ To demonstrate an expected business outcome rather than a crash:
 npm run demo:exceptional
 ```
 
+The same replay can be compiled for a tenant through a reviewed application profile and locator overlay:
+
+```bash
+npm run demo:replay -- --artifact capabilities/read_savings_balance.json --profile profiles/northstar_core.profile.json --overlay profiles/demo_credit_union.overlay.json --member-id 67890
+```
+
 Expected results are `$4,281.36` for member `12345`, `$912.04` for member `67890`, and `member_not_found` for the exceptional command. Each run writes redacted JSONL events and a final screenshot beside its output.
 
 ## How it fits together
@@ -54,7 +60,7 @@ The code is a modular monolith with boundaries that mirror the production proble
 
 Claude receives compact text, control, and data-field observations and must return one schema-validated tool action. Successful actions are recorded, while raw runtime values are rejected when they should be input placeholders. Replay resolves visible locator candidates in a fixed order within each step's timeout, requires unique matches, checks declared checkpoints and every contracted output, and never calls the model.
 
-The hand-authored capability in `capabilities/read_savings_balance.json` shows how a discovered flow can be enriched with reviewed runtime knowledge. It declares a not-found outcome, a bounded transient retry, explicit risk labels, and additional checkpoints. Exhausted failures can route a bounded intervention request with run and failure context while preserving the live browser session. The comparison in `evidence/artifact-comparison.md` shows why enrichment matters: Claude independently found the reusable happy path, but one successful trace could not reveal exceptional states it never observed.
+The hand-authored capability in `capabilities/read_savings_balance.json` shows how a discovered flow can be enriched with reviewed runtime knowledge. It declares a not-found outcome, a bounded transient retry, explicit risk labels, stable target keys, and additional checkpoints. Application profiles own compatible app versions and policy, while tenant overlays can replace entrypoints and keyed locators without rebuilding the workflow. Exhausted failures can route a bounded intervention request with run and failure context while preserving the live browser session.
 
 ## Evidence
 

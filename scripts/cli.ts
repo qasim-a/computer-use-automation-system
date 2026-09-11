@@ -13,6 +13,8 @@ import {
 import { FileRunObserver, Redactor } from "../packages/observability/src/index.js";
 import { ReplayEngine } from "../packages/replay/src/index.js";
 import { PlaywrightWebSurface } from "../packages/surface/src/index.js";
+import { compileCapability } from "../packages/profiles/src/index.js";
+import { ActionPolicy } from "../packages/policy/src/index.js";
 
 type CliOptions = Record<string, string>;
 
@@ -80,12 +82,22 @@ async function replay(options: CliOptions, port: number, command: string) {
   const memberId = options["member-id"] ?? "67890";
   const output = resolve(options.output ?? `output/${command}-result.json`);
   const evidenceDirectory = `${output.slice(0, -5)}-run`;
-  const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
-  if (artifact?.capability?.target) artifact.capability.target.entrypoint = `http://127.0.0.1:${port}/members`;
+  let artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+  let policy: ActionPolicy | undefined;
+  if (options.profile) {
+    const profile = JSON.parse(await readFile(resolve(options.profile), "utf8"));
+    const overlay = options.overlay ? JSON.parse(await readFile(resolve(options.overlay), "utf8")) : undefined;
+    const compiled = compileCapability(artifact, profile, overlay);
+    artifact = compiled.artifact;
+    policy = new ActionPolicy(compiled.policy);
+  }
+  if (artifact?.capability?.target && !options.profile) {
+    artifact.capability.target.entrypoint = `http://127.0.0.1:${port}/members`;
+  }
   const observer = new FileRunObserver(evidenceDirectory, new Redactor([memberId]));
   const surface = await PlaywrightWebSurface.launch({ headless: options.headless !== "false" });
   try {
-    const result = await new ReplayEngine(surface, undefined, undefined, observer).run(artifact, { member_id: memberId });
+    const result = await new ReplayEngine(surface, policy, undefined, observer).run(artifact, { member_id: memberId });
     await mkdir(dirname(output), { recursive: true });
     await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
     await surface.screenshot(resolve(evidenceDirectory, "final.png"));
