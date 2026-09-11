@@ -94,6 +94,20 @@ export const capabilityArtifactSchema = z.object({
     if (step.action === "extract" && !outputNames.has(step.output)) {
       context.addIssue({ code: "custom", path: ["steps", index, "output"], message: "Extracted output must be declared" });
     }
+    if (step.risk === "irreversible") {
+      if (step.retry) {
+        context.addIssue({
+          code: "custom", path: ["steps", index, "retry"],
+          message: "Irreversible steps cannot be retried automatically"
+        });
+      }
+      if (!step.checkpoint) {
+        context.addIssue({
+          code: "custom", path: ["steps", index, "checkpoint"],
+          message: "Irreversible steps require a checkpoint"
+        });
+      }
+    }
   }
   for (const [index, output] of artifact.contract.outputs.entries()) {
     const producers = artifact.steps.filter((step) => step.action === "extract" && step.output === output.name);

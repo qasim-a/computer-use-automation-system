@@ -7,6 +7,7 @@ import { PlaywrightWebSurface } from "../packages/surface/src/index.js";
 import type { Surface } from "../packages/surface/src/index.js";
 import { targets } from "../packages/discovery/src/index.js";
 import { ReplayEngine } from "../packages/replay/src/index.js";
+import { ActionPolicy } from "../packages/policy/src/index.js";
 
 let server: Server;
 let origin: string;
@@ -117,6 +118,50 @@ test("replay pauses, accepts a human repair, and retries the blocked step", asyn
   const result = await replayPromise;
   assert.equal(result.status, "success");
   assert.equal(completed, true);
+});
+
+test("replay verifies rather than repeats an irreversible action after handoff", async () => {
+  let actionCount = 0;
+  let committed = false;
+  const surface: Surface = {
+    navigate: async () => {},
+    observe: async () => ({
+      url: "http://127.0.0.1:4173/members", title: "Member Service", visibleText: "", controls: [], dataFields: []
+    }),
+    click: async () => { actionCount += 1; committed = true; throw new Error("Response lost after commit"); },
+    fill: async () => {}, extractText: async () => "",
+    isVisible: async () => committed, screenshot: async () => {}, close: async () => {}
+  };
+  const checkpoint = {
+    kind: "visible" as const,
+    target: { description: "Confirmation", locators: [{ strategy: "text" as const, value: "Done", exact: true }], requireUnique: true }
+  };
+  const artifact = {
+    schemaVersion: "1.0",
+    capability: {
+      name: "submit_once", version: "1.0.0", description: "Submit exactly once",
+      target: { surface: "web", app: "northstar_core", entrypoint: "http://127.0.0.1:4173/members" }
+    },
+    contract: { inputs: [], outputs: [] },
+    steps: [{
+      id: "submit", action: "click", description: "Submit", risk: "irreversible", timeoutMs: 10_000,
+      target: { description: "Submit", locators: [{ strategy: "text", value: "Submit", exact: true }], requireUnique: true },
+      checkpoint
+    }],
+    success: checkpoint,
+    metadata: { createdAt: "2026-09-11T14:00:00.000Z", discoveryRunId: "handoff-test" }
+  };
+  const policy = new ActionPolicy({
+    allowedOriginPatterns: ["^http://127\\.0\\.0\\.1:4173$"], allowedPathPatterns: ["^/members$"],
+    allowedActions: ["click"], requireApprovalFor: ["irreversible"]
+  }, async () => true);
+  const handoff = new HandoffController(surface);
+  const replayPromise = new ReplayEngine(surface, policy, handoff).run(artifact, {});
+  await waitFor(() => handoff.ownership() === "handoff_requested");
+  handoff.takeControl("operator@example.test").resume("Confirmed that submission committed");
+
+  assert.equal((await replayPromise).status, "success");
+  assert.equal(actionCount, 1);
 });
 
 async function waitFor(condition: () => boolean): Promise<void> {

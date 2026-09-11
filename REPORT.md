@@ -46,7 +46,7 @@ The tests exercise both halves of this contract. A real Chromium test proves tha
 
 ## 6. Safety
 
-An `ActionPolicy` sits in both execution paths. It allowlists action types, origin patterns, and route patterns before the surface receives an action. Steps are treated as read-only, reversible, or irreversible; the irreversible class requires an approval provider and is denied when none is present. Policy enforcement is code, not a prompt instruction, and tests confirm that a denied replay performs no navigation.
+An `ActionPolicy` sits in both execution paths. It allowlists action types, origin patterns, and route patterns before the surface receives an action. Steps are treated as read-only, reversible, or irreversible; the irreversible class requires an approval provider and is denied when none is present. Irreversible steps must declare a postcondition and cannot carry automatic retries; after handoff, replay verifies that postcondition instead of repeating a possibly committed action. Policy enforcement is code, not a prompt instruction, and tests confirm that a denied replay performs no navigation.
 
 Sensitive runtime inputs are parameterized before artifact persistence. Observability recursively redacts configured values as well as credential- and PII-shaped keys before writing JSONL. API keys live in `.env`, which is ignored by Git, and mocked Anthropic tests ensure the normal test suite cannot spend money or contact the model. The committed screenshots contain only synthetic member records.
 

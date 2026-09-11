@@ -134,12 +134,18 @@ export class ReplayEngine {
         stepId: step.id,
         reason: messageOf(lastError)
       });
-      const currentUrl = (await this.surface.observe()).url;
-      const navigationUrl = step.action === "navigate" ? bind(step.url, artifact, inputs) : undefined;
-      await this.policy.authorize(step, currentUrl, navigationUrl);
       const deadline = Date.now() + step.timeoutMs;
-      await this.execute(step, artifact, inputs, outputs, remaining(deadline));
-      if (step.checkpoint) await this.verify(step.checkpoint, artifact, inputs, remaining(deadline));
+      if (step.risk === "irreversible") {
+        // The action may have committed before its response failed. Human resolution must
+        // establish the postcondition; automation never repeats the side effect blindly.
+        await this.verify(step.checkpoint, artifact, inputs, remaining(deadline));
+      } else {
+        const currentUrl = (await this.surface.observe()).url;
+        const navigationUrl = step.action === "navigate" ? bind(step.url, artifact, inputs) : undefined;
+        await this.policy.authorize(step, currentUrl, navigationUrl);
+        await this.execute(step, artifact, inputs, outputs, remaining(deadline));
+        if (step.checkpoint) await this.verify(step.checkpoint, artifact, inputs, remaining(deadline));
+      }
       return;
     }
     throw lastError;

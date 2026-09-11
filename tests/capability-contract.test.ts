@@ -68,6 +68,19 @@ test("requires complete role locators", () => {
   assert.equal(capabilityArtifactSchema.safeParse(invalid).success, false);
 });
 
+test("requires irreversible actions to have a checkpoint and forbids retries", () => {
+  const unsafe: Record<string, any> = structuredClone(artifact);
+  unsafe.steps[1]!.risk = "irreversible";
+  unsafe.steps[1]!.retry = { maxAttempts: 2, delayMs: 10 };
+  assert.equal(capabilityArtifactSchema.safeParse(unsafe).success, false);
+
+  delete unsafe.steps[1]!.retry;
+  assert.equal(capabilityArtifactSchema.safeParse(unsafe).success, false);
+
+  unsafe.steps[1]!.checkpoint = unsafe.success;
+  assert.equal(capabilityArtifactSchema.safeParse(unsafe).success, true);
+});
+
 test("models success, business outcomes, and failures separately", () => {
   const base = { runId: "run-1", capabilityName: "read_savings_balance", capabilityVersion: "1.0.0", durationMs: 42 };
   assert.equal(replayResultSchema.parse({ ...base, status: "success", outputs: { current_balance: "$4,281.36" } }).status, "success");
