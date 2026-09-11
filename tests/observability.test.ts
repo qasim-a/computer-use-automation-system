@@ -33,17 +33,19 @@ test("memory observer stores structured redacted events", async () => {
 test("file observer writes redacted JSONL and requests a failure screenshot", async () => {
   const directory = `/tmp/cuas-observer-${randomUUID()}`;
   let screenshotPath = "";
+  let masked = false;
   const surface: Surface = {
     navigate: async () => {},
     observe: async () => ({ url: "about:blank", title: "", visibleText: "", controls: [], dataFields: [] }),
     click: async () => {}, fill: async () => {}, extractText: async () => "", isVisible: async () => true, close: async () => {},
-    screenshot: async (path) => { screenshotPath = path; }
+    screenshot: async (path, options) => { screenshotPath = path; masked = options?.maskSensitive === true; }
   };
   const observer = new FileRunObserver(directory, new Redactor(["12345"]));
   await observer.record({ runId: "run-1", phase: "replay", type: "run_failed", details: { member_id: "12345" } });
   const evidence = await observer.captureFailure(surface, "run-1", "search/member");
   assert.equal(evidence, screenshotPath);
   assert.match(screenshotPath, /run-1-search_member-failure\.png$/);
+  assert.equal(masked, true);
   assert.doesNotMatch(await readFile(`${directory}/events.jsonl`, "utf8"), /12345/);
 });
 

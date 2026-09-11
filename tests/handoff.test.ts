@@ -85,6 +85,27 @@ test("handoff can time out or be cancelled without losing ownership state", asyn
   }
 });
 
+test("handoff redacts sensitive values before routing context", async () => {
+  let routed: InterventionRequest | undefined;
+  const surface: Surface = {
+    navigate: async () => {}, click: async () => {}, fill: async () => {}, extractText: async () => "",
+    isVisible: async () => true, screenshot: async () => {}, close: async () => {},
+    observe: async () => ({
+      url: "http://127.0.0.1/members/12345", title: "Member", visibleText: "Balance $4,281.36 for 12345",
+      controls: [], dataFields: [{ name: "balance", text: "$4,281.36", selector: "[data-field=balance]" }]
+    })
+  };
+  const handoff = new HandoffController(surface, { router: { async route(request) { routed = request; } } });
+  const waiting = handoff.requestIntervention({
+    runId: "run-3", capabilityName: "read_savings_balance", capabilityVersion: "1.0.0",
+    stepId: "read_balance", failure: { code: "locator_failed", message: "Missing balance", attempts: 1 }
+  }, ["12345"]);
+  await waitFor(() => handoff.ownership() === "handoff_requested");
+  assert.doesNotMatch(JSON.stringify(routed), /12345|\$4,281\.36/);
+  handoff.cancel("Test complete");
+  await assert.rejects(waiting, HandoffCancelledError);
+});
+
 test("rejects invalid ownership transitions", async () => {
   const surface = await PlaywrightWebSurface.launch();
   try {

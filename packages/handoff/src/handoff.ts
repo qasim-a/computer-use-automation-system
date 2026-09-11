@@ -87,15 +87,15 @@ export class HandoffController {
     return this.pending?.request;
   }
 
-  async requestIntervention(context: InterventionContext): Promise<HandoffResolution> {
+  async requestIntervention(context: InterventionContext, sensitiveValues: readonly unknown[] = []): Promise<HandoffResolution> {
     if (this.owner !== "automation") throw new HandoffStateError(`Cannot request handoff while owner is ${this.owner}`);
     const id = randomUUID();
-    const observation = await this.surface.observe();
+    const observation = redactObservation(await this.surface.observe(), sensitiveValues);
     let screenshot: string | undefined;
     if (this.options.evidenceDirectory) {
       await mkdir(this.options.evidenceDirectory, { recursive: true });
       screenshot = resolve(this.options.evidenceDirectory, `${id}.png`);
-      await this.surface.screenshot(screenshot);
+      await this.surface.screenshot(screenshot, { maskSensitive: true });
     }
     const request: InterventionRequest = {
       ...context, id, createdAt: new Date().toISOString(), observation, ...(screenshot ? { screenshot } : {})
@@ -155,6 +155,20 @@ export class HandoffController {
     this.owner = "automation_resuming";
     this.pending.resolve({ operator, note, actions: [...this.pending.actions] });
   }
+}
+
+function redactObservation(observation: SurfaceObservation, sensitiveValues: readonly unknown[]): SurfaceObservation {
+  const values = [
+    ...sensitiveValues.map(String),
+    ...observation.dataFields.map((field) => field.text)
+  ].filter((value) => value.length > 0).sort((a, b) => b.length - a.length);
+  const redact = (text: string) => values.reduce((safe, value) => safe.replaceAll(value, "[REDACTED]"), text);
+  return {
+    ...observation,
+    url: redact(observation.url),
+    visibleText: redact(observation.visibleText),
+    dataFields: observation.dataFields.map((field) => ({ ...field, text: "[REDACTED]" }))
+  };
 }
 
 export class OperatorSession {

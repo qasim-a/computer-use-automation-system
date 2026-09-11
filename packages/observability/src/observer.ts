@@ -60,7 +60,7 @@ export class FileRunObserver implements RunObserver {
     await mkdir(this.directory, { recursive: true });
     const safeStep = (stepId ?? "unknown_step").replace(/[^a-zA-Z0-9_-]/g, "_");
     const path = resolve(this.directory, `${runId}-${safeStep}-failure.png`);
-    await surface.screenshot(path);
+    await surface.screenshot(path, { maskSensitive: true });
     return path;
   }
 }

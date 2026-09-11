@@ -140,7 +140,7 @@ export class ReplayEngine {
         capabilityVersion: artifact.capability.version,
         stepId: step.id,
         failure: { code: failure.code, message: failure.message, attempts: maxAttempts }
-      });
+      }, artifact.contract.inputs.filter((input) => input.sensitive).map((input) => inputs[input.name]));
       const deadline = Date.now() + step.timeoutMs;
       if (step.risk === "irreversible") {
         // The action may have committed before its response failed. Human resolution must

@@ -22,7 +22,7 @@ export interface Surface {
   fill(target: ControlTarget, value: string, timeoutMs?: number): Promise<void>;
   extractText(target: ControlTarget, timeoutMs?: number): Promise<string>;
   isVisible(target: ControlTarget, timeoutMs?: number): Promise<boolean>;
-  screenshot(path: string): Promise<void>;
+  screenshot(path: string, options?: { maskSensitive?: boolean }): Promise<void>;
   close(): Promise<void>;
 }
 

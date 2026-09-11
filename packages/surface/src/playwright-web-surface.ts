@@ -90,8 +90,11 @@ export class PlaywrightWebSurface implements Surface {
     }
   }
 
-  async screenshot(path: string): Promise<void> {
-    await this.page.screenshot({ path, fullPage: true });
+  async screenshot(path: string, options: { maskSensitive?: boolean } = {}): Promise<void> {
+    const mask = options.maskSensitive
+      ? [this.page.locator("input:not([type=hidden]), [data-sensitive], [data-field]")]
+      : [];
+    await this.page.screenshot({ path, fullPage: true, mask });
   }
 
   async close(): Promise<void> {

@@ -62,7 +62,7 @@ export function createRequestHandler() {
       return;
     }
     response.end(html(`<h1>Member Summary</h1><table aria-label="Member summary">
-      <tr><td>Member Number</td><td>${member.id}</td></tr><tr><td>Name</td><td>${member.name}</td></tr>
+      <tr><td>Member Number</td><td data-sensitive>${member.id}</td></tr><tr><td>Name</td><td data-sensitive>${member.name}</td></tr>
       <tr><td>Savings</td><td><a class="button" href="/members/${member.id}/savings">View Account</a></td></tr></table>`));
     return;
   }
