@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "1.0",
+  "capability": {
+    "name": "read_savings_balance",
+    "version": "1.0.0",
+    "description": "Find a member and return the current savings balance",
+    "target": {
+      "surface": "web",
+      "app": "northstar_core",
+      "entrypoint": "http://127.0.0.1:4173/members"
+    }
+  },
+  "contract": {
+    "inputs": [
+      {
+        "name": "member_id",
+        "type": "string",
+        "description": "Member number",
+        "required": true,
+        "sensitive": true
+      }
+    ],
+    "outputs": [
+      {
+        "name": "current_balance",
+        "type": "string",
+        "description": "Displayed savings balance"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "open_members",
+      "action": "navigate",
+      "description": "Open member search",
+      "url": "${target.entrypoint}",
+      "timeoutMs": 10000,
+      "checkpoint": { "kind": "url", "matches": "/members$" }
+    },
+    {
+      "id": "enter_member_id",
+      "action": "fill",
+      "description": "Enter the member number",
+      "value": "${inputs.member_id}",
+      "timeoutMs": 10000,
+      "target": {
+        "description": "Member Number input",
+        "locators": [
+          { "strategy": "label", "value": "Member Number", "exact": true },
+          { "strategy": "css", "value": "input[name=memberId]", "exact": true }
+        ],
+        "requireUnique": true
+      }
+    },
+    {
+      "id": "search_member",
+      "action": "click",
+      "description": "Submit member search",
+      "timeoutMs": 10000,
+      "target": {
+        "description": "Search button",
+        "locators": [{ "strategy": "role", "role": "button", "value": "Search", "exact": true }],
+        "requireUnique": true
+      },
+      "checkpoint": {
+        "kind": "visible",
+        "target": {
+          "description": "Member summary",
+          "locators": [{ "strategy": "role", "role": "heading", "value": "Member Summary", "exact": true }],
+          "requireUnique": true
+        }
+      }
+    },
+    {
+      "id": "open_savings",
+      "action": "click",
+      "description": "Open savings account",
+      "timeoutMs": 10000,
+      "target": {
+        "description": "Savings account link",
+        "locators": [{ "strategy": "role", "role": "link", "value": "View Account", "exact": true }],
+        "requireUnique": true
+      }
+    },
+    {
+      "id": "read_balance",
+      "action": "extract",
+      "description": "Read the current savings balance",
+      "timeoutMs": 10000,
+      "output": "current_balance",
+      "target": {
+        "description": "Current balance",
+        "locators": [
+          { "strategy": "css", "value": "[data-field=current-balance]", "exact": true },
+          { "strategy": "text", "value": "$4,281.36", "exact": true }
+        ],
+        "requireUnique": true
+      }
+    }
+  ],
+  "success": {
+    "kind": "visible",
+    "target": {
+      "description": "Savings account table",
+      "locators": [{ "strategy": "role", "role": "table", "value": "Savings account", "exact": true }],
+      "requireUnique": true
+    }
+  },
+  "metadata": {
+    "createdAt": "2026-09-11T14:00:00.000Z",
+    "discoveryRunId": "bootstrap-artifact"
+  }
+}
