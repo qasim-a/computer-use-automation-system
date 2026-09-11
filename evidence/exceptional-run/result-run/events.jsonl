@@ -1,0 +1,8 @@
+{"timestamp":"2026-09-11T17:49:01.656Z","runId":"18d741b4-973a-4de8-9737-ced525585486","phase":"replay","type":"run_started","details":{"capability":"read_savings_balance","version":"1.0.0"}}
+{"timestamp":"2026-09-11T17:49:01.657Z","runId":"18d741b4-973a-4de8-9737-ced525585486","phase":"replay","type":"step_started","stepId":"open_members","details":{"action":"navigate","attempt":1,"maxAttempts":1}}
+{"timestamp":"2026-09-11T17:49:01.712Z","runId":"18d741b4-973a-4de8-9737-ced525585486","phase":"replay","type":"step_succeeded","stepId":"open_members","details":{"attempt":1}}
+{"timestamp":"2026-09-11T17:49:01.712Z","runId":"18d741b4-973a-4de8-9737-ced525585486","phase":"replay","type":"step_started","stepId":"enter_member_id","details":{"action":"fill","attempt":1,"maxAttempts":1}}
+{"timestamp":"2026-09-11T17:49:01.726Z","runId":"18d741b4-973a-4de8-9737-ced525585486","phase":"replay","type":"step_succeeded","stepId":"enter_member_id","details":{"attempt":1}}
+{"timestamp":"2026-09-11T17:49:01.726Z","runId":"18d741b4-973a-4de8-9737-ced525585486","phase":"replay","type":"step_started","stepId":"search_member","details":{"action":"click","attempt":1,"maxAttempts":2}}
+{"timestamp":"2026-09-11T17:49:01.795Z","runId":"18d741b4-973a-4de8-9737-ced525585486","phase":"replay","type":"step_stopped_for_outcome","stepId":"search_member","details":{"attempt":1,"outcome":"member_not_found"}}
+{"timestamp":"2026-09-11T17:49:01.796Z","runId":"18d741b4-973a-4de8-9737-ced525585486","phase":"replay","type":"business_outcome","stepId":"search_member","details":{"code":"member_not_found","message":"No member exists for the supplied member number"}}
