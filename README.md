@@ -53,13 +53,19 @@ To demonstrate an expected business outcome rather than a crash:
 npm run demo:exceptional
 ```
 
+To demonstrate human escalation, run the intentionally blocked replay. It exhausts its bounded retry, routes an intervention with redacted context, lets an identified demo operator dismiss the blocking dialog in the same browser session, and then resumes deterministically:
+
+```bash
+npm run demo:handoff -- --operator your_name
+```
+
 The same replay can be compiled for a visibly different tenant through a reviewed application profile and locator overlay:
 
 ```bash
 npm run demo:replay -- --artifact capabilities/read_savings_balance.json --profile profiles/northstar_core.profile.json --overlay profiles/demo_credit_union.overlay.json --member-id 67890
 ```
 
-Expected results are `$4,281.36` for member `12345`, `$912.04` for member `67890`, and `member_not_found` for the exceptional command. Each run writes redacted JSONL events and a final screenshot beside its output.
+Expected results are `$4,281.36` for member `12345`, `$912.04` for member `67890`, and `member_not_found` for the exceptional command. Each run writes redacted JSONL events and a final screenshot beside its output; sensitive outputs remain in the caller-facing result but are replaced with `[REDACTED]` in telemetry.
 
 ## How it fits together
 
@@ -73,7 +79,7 @@ The hand-authored capability in `capabilities/read_savings_balance.json` shows h
 
 `evidence/live-run` contains a genuine six-turn Claude Sonnet 5 discovery, the generated artifact, redacted discovery and replay logs, token usage, screenshots, and a successful model-free replay using a different member. That canonical discovery used 12,353 input tokens and 1,261 output tokens.
 
-`evidence/exceptional-run` contains a deterministic replay that returns `member_not_found`, including its structured event log and final UI state. `evidence/approval` demonstrates three-run qualification and an approval-gated replay. `evidence/cross-tenant` proves that the unchanged base artifact works against a second variant with different routes, labels, navigation, and output selectors. The artifact comparison files provide a reproducible four-case comparison between the Claude-discovered and engineered artifacts.
+`evidence/exceptional-run` contains a deterministic replay that returns `member_not_found`, including its structured event log and final UI state. `evidence/handoff` captures a blocked replay, routed intervention, same-session operator repair, and successful resume. `evidence/approval` demonstrates three-run qualification and an approval-gated replay. `evidence/cross-tenant` proves that the unchanged base artifact works against a second variant with different routes, labels, navigation, and output selectors. The artifact comparison files provide a reproducible four-case comparison between the Claude-discovered and engineered artifacts.
 
 Regenerate the live evidence with `npm run evidence:live`, or regenerate the comparison without an API key using `npm run evidence:compare`. All member records are synthetic.
 

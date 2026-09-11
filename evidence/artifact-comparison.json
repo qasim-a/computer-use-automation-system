@@ -1,14 +1,13 @@
 {
-  "generatedAt": "2026-09-11T17:54:33.078Z",
+  "generatedAt": "2026-09-11T20:49:57.372Z",
   "structures": {
     "engineered": {
       "steps": 5,
-      "locatorCandidates": 6,
+      "locatorCandidates": 5,
       "locatorStrategies": [
         "css",
         "label",
-        "role",
-        "text"
+        "role"
       ],
       "parameterizedFills": 1,
       "checkpoints": 3,

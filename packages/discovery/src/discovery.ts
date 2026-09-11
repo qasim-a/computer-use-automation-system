@@ -118,7 +118,10 @@ export class DiscoveryRunner {
           success: action.success,
           metadata: { createdAt: new Date().toISOString(), discoveryRunId: runId }
         });
-        await this.observer.record({ runId, phase: "discovery", type: "run_succeeded", details: { outputs } });
+        await this.observer.record({
+          runId, phase: "discovery", type: "run_succeeded",
+          details: { outputs: redactSensitiveOutputs(request.contract, outputs) }
+        });
         return { runId, artifact, outputs, turns };
       }
 
@@ -240,6 +243,16 @@ function validateCompleteOutputs(contract: DiscoveryRequest["contract"], outputs
     if (!(output.name in outputs)) throw new Error(`Required output ${output.name} was not produced`);
     validateOutput(output.name, outputs[output.name], contract);
   }
+}
+
+function redactSensitiveOutputs(
+  contract: DiscoveryRequest["contract"],
+  outputs: Record<string, unknown>
+): Record<string, unknown> {
+  const sensitive = new Set(contract.outputs.filter((output) => output.sensitive).map((output) => output.name));
+  return Object.fromEntries(
+    Object.entries(outputs).map(([name, value]) => [name, sensitive.has(name) ? "[REDACTED]" : value])
+  );
 }
 
 function remaining(deadline: number): number {

@@ -25,6 +25,7 @@ export function memberBalanceRequest(entrypoint: string, memberId: string): Disc
       inputs: [{ name: "member_id", type: "string", description: "Member number", required: true, sensitive: true }],
       outputs: [{
         name: "current_balance", type: "string", description: "Displayed savings balance",
+        sensitive: true,
         pattern: "^\\$[0-9,]+\\.[0-9]{2}$"
       }]
     },

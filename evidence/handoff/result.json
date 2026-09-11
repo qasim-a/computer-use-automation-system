@@ -1,0 +1,19 @@
+{
+  "runId": "cad77592-829f-4064-832d-c88fc37be210",
+  "capabilityName": "read_savings_balance",
+  "capabilityVersion": "1.0.0",
+  "durationMs": 2856.485542,
+  "status": "success",
+  "outputs": {
+    "current_balance": "$912.04"
+  },
+  "intervention": {
+    "requestId": "8b1611d0-7a68-4deb-addf-6a43a2fc1893",
+    "stepId": "search_member",
+    "failureCode": "timeout",
+    "operator": "reviewer_demo",
+    "action": "Dismiss blocking dialog",
+    "note": "Dismissed the unexpected host notice; resume the recorded step",
+    "resumed": true
+  }
+}

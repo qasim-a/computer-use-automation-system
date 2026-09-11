@@ -84,7 +84,10 @@ export class ReplayEngine {
       }
       validateOutputs(artifact, outputs);
       await this.verify(artifact.success, artifact, inputs);
-      await this.observer.record({ runId, phase: "replay", type: "run_succeeded", details: { outputs } });
+      await this.observer.record({
+        runId, phase: "replay", type: "run_succeeded",
+        details: { outputs: redactSensitiveOutputs(artifact, outputs) }
+      });
       return replayResultSchema.parse({
         runId,
         capabilityName: artifact.capability.name,
@@ -318,6 +321,18 @@ function validateOutputs(artifact: CapabilityArtifact, outputs: Record<string, u
       throw new ExecutionError("output_invalid", `Output ${declaration.name} did not match its declared pattern`, declaration.pattern, String(value));
     }
   }
+}
+
+function redactSensitiveOutputs(
+  artifact: CapabilityArtifact,
+  outputs: Record<string, unknown>
+): Record<string, unknown> {
+  const sensitive = new Set(
+    artifact.contract.outputs.filter((output) => output.sensitive).map((output) => output.name)
+  );
+  return Object.fromEntries(
+    Object.entries(outputs).map(([name, value]) => [name, sensitive.has(name) ? "[REDACTED]" : value])
+  );
 }
 
 function messageOf(error: unknown): string {

@@ -68,7 +68,8 @@ export const capabilityArtifactSchema = z.object({
   }),
   contract: z.object({
     inputs: z.array(parameterSchema),
-    outputs: z.array(parameterSchema.omit({ required: true, sensitive: true }).extend({
+    outputs: z.array(parameterSchema.omit({ required: true }).extend({
+      sensitive: z.boolean().optional(),
       pattern: z.string().min(1).optional()
     }))
   }),

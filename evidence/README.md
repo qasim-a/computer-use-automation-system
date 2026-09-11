@@ -17,3 +17,5 @@ All member records are synthetic. Recreate this evidence with `npm run evidence:
 `approval/` contains a draft qualification promoted after three consistent fresh-session replays, followed by a replay that requires and verifies the saved approval. It uses a demonstration reviewer identity and requires no API key.
 
 `cross-tenant/` replays one unchanged base artifact against two visibly different variants. The second run changes its route family, labels, navigation text, and output selectors through the reviewed tenant overlay; both runs return the same typed result without discovery or model use.
+
+`handoff/` demonstrates the reviewer-runnable escalation path. An injected dialog blocks the recorded search, bounded attempts exhaust, an identified demo operator takes over the same browser session through the router seam, dismisses it, and returns control for a successful replay.

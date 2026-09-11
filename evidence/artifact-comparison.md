@@ -4,7 +4,7 @@ Both artifacts contain 5 steps and parameterize the runtime member ID. The Claud
 
 | Property | Engineered artifact | Claude-discovered artifact |
 | --- | ---: | ---: |
-| Locator candidates | 6 | 6 |
+| Locator candidates | 5 | 6 |
 | Step checkpoints | 3 | 1 |
 | Explicit risk labels | 5 | 0 |
 | Retrying steps | 1 | 0 |

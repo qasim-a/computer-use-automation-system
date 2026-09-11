@@ -27,6 +27,7 @@
         "name": "current_balance",
         "type": "string",
         "description": "Displayed savings balance",
+        "sensitive": true,
         "pattern": "^\\$[0-9,]+\\.[0-9]{2}$"
       }
     ]
@@ -143,11 +144,6 @@
             "strategy": "css",
             "value": "[data-field=current-balance]",
             "exact": true
-          },
-          {
-            "strategy": "text",
-            "value": "$4,281.36",
-            "exact": true
           }
         ],
         "requireUnique": true
@@ -198,9 +194,9 @@
     "discoveryRunId": "bootstrap-artifact"
   },
   "approval": {
-    "approvedAt": "2026-09-11T20:24:18.209Z",
-    "approvedBy": "demonstration_reviewer",
-    "artifactDigest": "7984647dbc87d241ac8a5ae0219d789b2321fba20cc7dcebae4bc8c9436968db",
+    "approvedAt": "2026-09-11T20:50:05.528Z",
+    "approvedBy": "demo_reviewer",
+    "artifactDigest": "1b6fbfb44290282befffe923ca3e28137cbbfe44f6958f2170f1215304fd2473",
     "stability": {
       "totalRuns": 3,
       "successfulRuns": 3,

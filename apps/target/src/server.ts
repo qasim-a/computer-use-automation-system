@@ -10,6 +10,8 @@ body{font:14px Arial,sans-serif;background:#d6d9df;margin:0;color:#111827}table{
 .content{padding:20px}td{padding:8px;border:1px solid #98a2b3}label{font-weight:bold}input{padding:6px;width:220px}
 button,a.button{display:inline-block;background:#315b86;color:#fff;border:0;padding:7px 13px;text-decoration:none;cursor:pointer}
 .notice{padding:10px;border:1px solid #b42318;background:#fef3f2;color:#912018}.muted{color:#667085}
+.blocker{position:fixed;inset:0;background:rgba(17,24,39,.72);display:flex;align-items:center;justify-content:center;z-index:10}
+.dialog{background:#fff;padding:24px;border:2px solid #17365d;max-width:360px}
 </style></head><body><div class="shell"><div class="bar">Northstar Core Banking — Member Service</div><div class="content">${body}</div></div></body></html>`;
 
 type TenantVariant = {
@@ -33,7 +35,10 @@ const searchPage = (variant: TenantVariant, message = "", memberId = "", scenari
     <td><input id="member-number" name="${variant.idField}" value="${memberId}" inputmode="numeric" autocomplete="off"></td>
     <td><button type="submit">${variant.searchLabel}</button></td></tr></table>
     ${scenario ? `<input type="hidden" name="scenario" value="${scenario}">` : ""}
-  </form>`);
+  </form>
+  ${scenario === "blocked" ? `<div class="blocker" role="dialog" aria-label="Unexpected host notice">
+    <div class="dialog"><p>An unexpected host notice is blocking automation.</p>
+    <button type="button" onclick="this.closest('.blocker').remove()">Dismiss blocking dialog</button></div></div>` : ""}`);
 
 export function createRequestHandler() {
   const transientAttempts = new Map<string, number>();

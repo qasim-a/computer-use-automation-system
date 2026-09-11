@@ -16,13 +16,14 @@ import { PlaywrightWebSurface } from "../packages/surface/src/index.js";
 import { compileCapability } from "../packages/profiles/src/index.js";
 import { ActionPolicy } from "../packages/policy/src/index.js";
 import { approveArtifact, assessStability } from "../packages/approval/src/index.js";
+import { HandoffController, type InterventionRequest } from "../packages/handoff/src/index.js";
 
 type CliOptions = Record<string, string>;
 
 export function parseCliArgs(arguments_: string[]): { command: string; options: CliOptions } {
   const [command, ...rest] = arguments_;
-  if (!command || !["discover", "replay", "exceptional", "qualify"].includes(command)) {
-    throw new Error("Usage: cli.ts <discover|replay|exceptional|qualify> [--key value]");
+  if (!command || !["discover", "replay", "exceptional", "qualify", "handoff"].includes(command)) {
+    throw new Error("Usage: cli.ts <discover|replay|exceptional|qualify|handoff> [--key value]");
   }
   const options: CliOptions = {};
   for (let index = 0; index < rest.length; index += 2) {
@@ -37,20 +38,77 @@ export function parseCliArgs(arguments_: string[]): { command: string; options: 
 export async function runCli(arguments_: string[]): Promise<unknown> {
   const { command, options } = parseCliArgs(arguments_);
   const port = Number(options.port ?? 4173);
-  if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("--port must be a valid TCP port");
+  if (!Number.isInteger(port) || port < 0 || port > 65_535) throw new Error("--port must be a valid TCP port");
   const server = await startTargetServer(port);
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Target server has no TCP port");
+  const actualPort = address.port;
   try {
-    if (command === "discover") return await discover(options, port);
-    if (command === "qualify") return await qualify(options, port);
-    if (command === "replay") return await replay(options, port, command);
+    if (command === "discover") return await discover(options, actualPort);
+    if (command === "qualify") return await qualify(options, actualPort);
+    if (command === "handoff") return await handoffDemo(options, actualPort);
+    if (command === "replay") return await replay(options, actualPort, command);
     return await replay({
       ...options,
       artifact: options.artifact ?? "capabilities/read_savings_balance.json",
       "member-id": "00000",
       output: options.output ?? "evidence/exceptional-run/result.json"
-    }, port, command);
+    }, actualPort, command);
   } finally {
     await new Promise<void>((resolveClose, reject) => server.close((error) => error ? reject(error) : resolveClose()));
+  }
+}
+
+async function handoffDemo(options: CliOptions, port: number) {
+  const artifactPath = resolve(options.artifact ?? "capabilities/read_savings_balance.json");
+  const output = resolve(options.output ?? "evidence/handoff/result.json");
+  const evidenceDirectory = `${output.slice(0, -5)}-run`;
+  const memberId = options["member-id"] ?? "67890";
+  const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+  artifact.lifecycle = "draft";
+  delete artifact.approval;
+  artifact.capability.target.entrypoint = `http://127.0.0.1:${port}/members?scenario=blocked`;
+  const searchStep = artifact.steps.find((step: { id?: string }) => step.id === "search_member");
+  if (searchStep) searchStep.timeoutMs = 1_000;
+  const observer = new FileRunObserver(evidenceDirectory, new Redactor([memberId]));
+  const surface = await PlaywrightWebSurface.launch({ headless: options.headless !== "false" });
+  let routed: InterventionRequest | undefined;
+  let handoff: HandoffController;
+  handoff = new HandoffController(surface, {
+    evidenceDirectory,
+    router: {
+      async route(request) {
+        routed = request;
+        const operator = handoff.takeControl(options.operator ?? "demo_operator");
+        await operator.click({
+          description: "Blocking host dialog dismissal",
+          locators: [{ strategy: "role", role: "button", value: "Dismiss blocking dialog", exact: true }],
+          requireUnique: true
+        });
+        operator.resume("Dismissed the unexpected host notice; resume the recorded step");
+      }
+    }
+  });
+  try {
+    const result = await new ReplayEngine(surface, undefined, handoff, observer).run(artifact, { member_id: memberId });
+    const demonstration = {
+      ...result,
+      intervention: routed ? {
+        requestId: routed.id,
+        stepId: routed.stepId,
+        failureCode: routed.failure.code,
+        operator: options.operator ?? "demo_operator",
+        action: "Dismiss blocking dialog",
+        note: "Dismissed the unexpected host notice; resume the recorded step",
+        resumed: result.status === "success"
+      } : undefined
+    };
+    await mkdir(dirname(output), { recursive: true });
+    await writeFile(output, `${JSON.stringify(demonstration, null, 2)}\n`);
+    await surface.screenshot(resolve(evidenceDirectory, "final.png"), { maskSensitive: true });
+    return { ...demonstration, result: output };
+  } finally {
+    await surface.close();
   }
 }
 
