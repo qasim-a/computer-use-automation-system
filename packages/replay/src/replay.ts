@@ -133,10 +133,13 @@ export class ReplayEngine {
       }
     }
     if (this.handoff) {
+      const failure = classifyFailure(lastError);
       await this.handoff.requestIntervention({
+        runId,
         capabilityName: artifact.capability.name,
+        capabilityVersion: artifact.capability.version,
         stepId: step.id,
-        reason: messageOf(lastError)
+        failure: { code: failure.code, message: failure.message, attempts: maxAttempts }
       });
       const deadline = Date.now() + step.timeoutMs;
       if (step.risk === "irreversible") {

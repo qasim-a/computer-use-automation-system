@@ -7,10 +7,12 @@ import type { Surface, SurfaceObservation } from "../../surface/src/index.js";
 export type ControlOwner = "automation" | "handoff_requested" | "human" | "automation_resuming";
 
 export type InterventionContext = {
+  runId: string;
   capabilityName: string;
+  capabilityVersion: string;
   goal?: string;
   stepId: string;
-  reason: string;
+  failure: { code: string; message: string; attempts: number };
 };
 
 export type InterventionRequest = InterventionContext & {
@@ -36,7 +38,18 @@ export type HandoffResolution = {
 type PendingHandoff = {
   request: InterventionRequest;
   resolve: (resolution: HandoffResolution) => void;
+  reject: (error: Error) => void;
   actions: HumanAction[];
+};
+
+export interface InterventionRouter {
+  route(request: InterventionRequest): Promise<void>;
+}
+
+export type HandoffOptions = {
+  evidenceDirectory?: string;
+  timeoutMs?: number;
+  router?: InterventionRouter;
 };
 
 export class HandoffStateError extends Error {
@@ -46,11 +59,25 @@ export class HandoffStateError extends Error {
   }
 }
 
+export class HandoffTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "HandoffTimeoutError";
+  }
+}
+
+export class HandoffCancelledError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "HandoffCancelledError";
+  }
+}
+
 export class HandoffController {
   private owner: ControlOwner = "automation";
   private pending: PendingHandoff | undefined;
 
-  constructor(private readonly surface: Surface, private readonly evidenceDirectory?: string) {}
+  constructor(private readonly surface: Surface, private readonly options: HandoffOptions = {}) {}
 
   ownership(): ControlOwner {
     return this.owner;
@@ -65,22 +92,37 @@ export class HandoffController {
     const id = randomUUID();
     const observation = await this.surface.observe();
     let screenshot: string | undefined;
-    if (this.evidenceDirectory) {
-      await mkdir(this.evidenceDirectory, { recursive: true });
-      screenshot = resolve(this.evidenceDirectory, `${id}.png`);
+    if (this.options.evidenceDirectory) {
+      await mkdir(this.options.evidenceDirectory, { recursive: true });
+      screenshot = resolve(this.options.evidenceDirectory, `${id}.png`);
       await this.surface.screenshot(screenshot);
     }
+    const request: InterventionRequest = {
+      ...context, id, createdAt: new Date().toISOString(), observation, ...(screenshot ? { screenshot } : {})
+    };
     this.owner = "handoff_requested";
-    const resolution = await new Promise<HandoffResolution>((resolveHandoff) => {
+    const timeoutMs = this.options.timeoutMs ?? 300_000;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const resolution = new Promise<HandoffResolution>((resolveHandoff, rejectHandoff) => {
       this.pending = {
-        request: { ...context, id, createdAt: new Date().toISOString(), observation, ...(screenshot ? { screenshot } : {}) },
+        request,
         resolve: resolveHandoff,
+        reject: rejectHandoff,
         actions: []
       };
+      timeout = setTimeout(
+        () => rejectHandoff(new HandoffTimeoutError(`No operator accepted intervention ${id} within ${timeoutMs}ms`)),
+        timeoutMs
+      );
     });
-    this.pending = undefined;
-    this.owner = "automation";
-    return resolution;
+    try {
+      await this.options.router?.route(request);
+      return await resolution;
+    } finally {
+      if (timeout) clearTimeout(timeout);
+      this.pending = undefined;
+      this.owner = "automation";
+    }
   }
 
   takeControl(operator: string): OperatorSession {
@@ -95,6 +137,13 @@ export class HandoffController {
   record(action: HumanAction): void {
     if (this.owner !== "human" || !this.pending) throw new HandoffStateError("Human does not own the session");
     this.pending.actions.push(action);
+  }
+
+  cancel(reason: string): void {
+    if (!this.pending || (this.owner !== "handoff_requested" && this.owner !== "human")) {
+      throw new HandoffStateError(`Cannot cancel handoff while owner is ${this.owner}`);
+    }
+    this.pending.reject(new HandoffCancelledError(reason));
   }
 
   resume(operator: string, note: string): void {

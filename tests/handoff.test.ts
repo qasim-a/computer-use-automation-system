@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import type { Server } from "node:http";
 import { after, before, test } from "node:test";
 import { startTargetServer } from "../apps/target/src/server.js";
-import { HandoffController, HandoffStateError } from "../packages/handoff/src/index.js";
+import {
+  HandoffCancelledError,
+  HandoffController,
+  HandoffStateError,
+  HandoffTimeoutError,
+  type InterventionRequest
+} from "../packages/handoff/src/index.js";
 import { PlaywrightWebSurface } from "../packages/surface/src/index.js";
 import type { Surface } from "../packages/surface/src/index.js";
 import { targets } from "../packages/discovery/src/index.js";
@@ -23,17 +29,24 @@ after(() => new Promise<void>((resolve, reject) => server.close((error) => error
 
 test("human takes over and returns the same live browser session", async () => {
   const surface = await PlaywrightWebSurface.launch();
-  const handoff = new HandoffController(surface);
+  let routed: InterventionRequest | undefined;
+  const handoff = new HandoffController(surface, {
+    router: { async route(request) { routed = request; } }
+  });
   try {
     await surface.navigate(`${origin}/members`);
     const waiting = handoff.requestIntervention({
+      runId: "run-1",
       capabilityName: "read_savings_balance",
+      capabilityVersion: "1.0.0",
       goal: "Read a member savings balance",
       stepId: "search_member",
-      reason: "Automation could not safely identify the next control"
+      failure: { code: "locator_failed", message: "Could not identify the next control", attempts: 2 }
     });
     await waitFor(() => handoff.ownership() === "handoff_requested");
     assert.equal(handoff.currentRequest()?.observation.url, `${origin}/members`);
+    assert.equal(routed?.runId, "run-1");
+    assert.equal(routed?.failure.code, "locator_failed");
 
     const operator = handoff.takeControl("operator@example.test");
     await operator.fill(targets.memberNumber, "12345");
@@ -46,6 +59,27 @@ test("human takes over and returns the same live browser session", async () => {
     assert.deepEqual(resolution.actions.map((action) => action.action), ["fill", "click", "click", "resume"]);
     assert.equal(await surface.extractText(targets.balance), "$4,281.36");
     assert.match(resolution.actions[0]?.description ?? "", /value redacted/);
+  } finally {
+    await surface.close();
+  }
+});
+
+test("handoff can time out or be cancelled without losing ownership state", async () => {
+  const surface = await PlaywrightWebSurface.launch();
+  const context = {
+    runId: "run-2", capabilityName: "read_savings_balance", capabilityVersion: "1.0.0",
+    stepId: "search_member", failure: { code: "locator_failed", message: "Missing control", attempts: 1 }
+  };
+  try {
+    const timed = new HandoffController(surface, { timeoutMs: 10 }).requestIntervention(context);
+    await assert.rejects(timed, HandoffTimeoutError);
+
+    const handoff = new HandoffController(surface);
+    const cancelled = handoff.requestIntervention(context);
+    await waitFor(() => handoff.ownership() === "handoff_requested");
+    handoff.cancel("Run was cancelled by its caller");
+    await assert.rejects(cancelled, HandoffCancelledError);
+    assert.equal(handoff.ownership(), "automation");
   } finally {
     await surface.close();
   }

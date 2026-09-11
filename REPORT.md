@@ -38,7 +38,7 @@ The same mechanism handles controlled drift. Replay evidence can distinguish a b
 
 ## 5. Escalation & handoff
 
-Replay can attach a `HandoffController` to an exhausted hard failure. The controller records the capability, step, reason, current observation, and optional screenshot, then changes ownership from `automation` to `handoff_requested`. An identified operator explicitly takes control, moving the state to `human`; until that happens, automation is paused on the same in-memory surface and browser context.
+Replay can attach a `HandoffController` to an exhausted hard failure. The controller records the run, capability version, step, classified failure, attempt count, current observation, and optional screenshot, then passes the request to an `InterventionRouter`. An identified operator explicitly takes control, moving ownership from `handoff_requested` to `human`; until that happens, automation is paused on the same in-memory surface and browser context. Unclaimed requests time out, and callers can cancel a pending or active handoff, so replay cannot wait forever.
 
 The operator acts through an `OperatorSession` backed by that same surface. Navigation, clicks, and fills are recorded with timestamps and operator identity, while filled values are represented as redacted descriptions. When the operator signals resume, ownership passes through `automation_resuming` and back to `automation`. Replay then gets one bounded retry of the blocked step, which covers cases such as dismissing an unfamiliar dialog or repairing session state without turning handoff into an unbounded recovery loop.
 

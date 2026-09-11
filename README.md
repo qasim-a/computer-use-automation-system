@@ -54,7 +54,7 @@ The code is a modular monolith with boundaries that mirror the production proble
 
 Claude receives compact text, control, and data-field observations and must return one schema-validated tool action. Successful actions are recorded, while raw runtime values are rejected when they should be input placeholders. Replay resolves visible locator candidates in a fixed order within each step's timeout, requires unique matches, checks declared checkpoints and every contracted output, and never calls the model.
 
-The hand-authored capability in `capabilities/read_savings_balance.json` shows how a discovered flow can be enriched with reviewed runtime knowledge. It declares a not-found outcome, a bounded transient retry, explicit risk labels, and additional checkpoints. The comparison in `evidence/artifact-comparison.md` shows why that enrichment matters: Claude independently found the reusable happy path, but one successful trace could not reveal exceptional states it never observed.
+The hand-authored capability in `capabilities/read_savings_balance.json` shows how a discovered flow can be enriched with reviewed runtime knowledge. It declares a not-found outcome, a bounded transient retry, explicit risk labels, and additional checkpoints. Exhausted failures can route a bounded intervention request with run and failure context while preserving the live browser session. The comparison in `evidence/artifact-comparison.md` shows why enrichment matters: Claude independently found the reusable happy path, but one successful trace could not reveal exceptional states it never observed.
 
 ## Evidence
 

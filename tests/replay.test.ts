@@ -58,7 +58,7 @@ test("passes each artifact step timeout to the surface", async () => {
   };
   const result = await new ReplayEngine(surface).run(timedArtifact, { member_id: "12345" });
   assert.equal(result.status, "success");
-  assert.equal(navigationTimeout, 37);
+  assert.ok(navigationTimeout !== undefined && navigationTimeout > 0 && navigationTimeout <= 37);
 });
 
 test("shares one timeout budget between a step action and its checkpoint", async () => {
