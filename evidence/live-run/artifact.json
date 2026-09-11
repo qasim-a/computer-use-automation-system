@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0",
+  "capability": {
+    "name": "read_savings_balance",
+    "version": "1.0.0",
+    "description": "Find a member and return the current savings balance",
+    "target": {
+      "surface": "web",
+      "app": "northstar_core",
+      "entrypoint": "http://127.0.0.1:4173/members"
+    }
+  },
+  "contract": {
+    "inputs": [
+      {
+        "name": "member_id",
+        "type": "string",
+        "description": "Member number",
+        "required": true,
+        "sensitive": true
+      }
+    ],
+    "outputs": [
+      {
+        "name": "current_balance",
+        "type": "string",
+        "description": "Displayed savings balance",
+        "pattern": "^\\$[0-9,]+\\.[0-9]{2}$"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "navigate_to_entrypoint",
+      "description": "Navigate to the application's entrypoint to begin the member savings balance lookup.",
+      "timeoutMs": 10000,
+      "action": "navigate",
+      "url": "${target.entrypoint}"
+    },
+    {
+      "id": "fill_member_id",
+      "description": "Fill the Member Number input with the provided member_id.",
+      "timeoutMs": 10000,
+      "action": "fill",
+      "target": {
+        "description": "Member Number input field",
+        "locators": [
+          {
+            "strategy": "label",
+            "value": "Member Number",
+            "exact": true
+          },
+          {
+            "strategy": "css",
+            "value": "input",
+            "exact": true
+          }
+        ],
+        "requireUnique": true
+      },
+      "value": "${inputs.member_id}"
+    },
+    {
+      "id": "click_search",
+      "description": "Click the Search button to look up the member's savings balance.",
+      "timeoutMs": 10000,
+      "action": "click",
+      "target": {
+        "description": "Search button",
+        "locators": [
+          {
+            "strategy": "role",
+            "value": "Search",
+            "role": "button",
+            "exact": true
+          }
+        ],
+        "requireUnique": true
+      }
+    },
+    {
+      "id": "click_view_account",
+      "description": "Click the View Account link for Savings to see the current balance.",
+      "timeoutMs": 10000,
+      "action": "click",
+      "target": {
+        "description": "View Account link for Savings",
+        "locators": [
+          {
+            "strategy": "role",
+            "value": "View Account",
+            "role": "link",
+            "exact": true
+          },
+          {
+            "strategy": "text",
+            "value": "View Account",
+            "exact": true
+          }
+        ],
+        "requireUnique": true
+      }
+    },
+    {
+      "id": "extract_current_balance",
+      "description": "Extract the current savings balance from the Savings Account table.",
+      "timeoutMs": 10000,
+      "action": "extract",
+      "target": {
+        "description": "Current Balance field in Savings Account table",
+        "locators": [
+          {
+            "strategy": "css",
+            "value": "[data-field=\"current-balance\"]",
+            "exact": true
+          }
+        ],
+        "requireUnique": true
+      },
+      "output": "current_balance"
+    }
+  ],
+  "success": {
+    "kind": "visible",
+    "target": {
+      "description": "Savings account table showing current balance",
+      "locators": [
+        {
+          "strategy": "text",
+          "value": "Savings Account",
+          "exact": true
+        }
+      ],
+      "requireUnique": true
+    }
+  },
+  "metadata": {
+    "createdAt": "2026-09-11T16:59:32.306Z",
+    "discoveryRunId": "9280004d-c93d-4ef5-b6a7-def24539d8c6"
+  }
+}
