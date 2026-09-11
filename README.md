@@ -14,6 +14,8 @@ Every discovery and replay action passes through a declarative policy that allow
 
 Replay distinguishes successful outputs, declared business outcomes, and hard failures. Individual steps may opt into a small fixed retry budget for known recoverable conditions; retries repeat the same recorded action and never invoke a model.
 
+Hard failures can route into a same-session handoff controller. Automation pauses with contextual state and an optional screenshot, an identified operator controls the existing surface through an audited session, and replay resumes with one bounded retry after control is returned.
+
 ## Run locally
 
 ```bash

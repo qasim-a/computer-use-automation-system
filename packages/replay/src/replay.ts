@@ -8,9 +8,14 @@ import {
 } from "../../contracts/src/index.js";
 import type { Surface } from "../../surface/src/index.js";
 import { ActionPolicy } from "../../policy/src/index.js";
+import type { HandoffController } from "../../handoff/src/index.js";
 
 export class ReplayEngine {
-  constructor(private readonly surface: Surface, private readonly policy = ActionPolicy.localDevelopment()) {}
+  constructor(
+    private readonly surface: Surface,
+    private readonly policy = ActionPolicy.localDevelopment(),
+    private readonly handoff?: HandoffController
+  ) {}
 
   async run(untrustedArtifact: unknown, inputs: Record<string, unknown>): Promise<ReplayResult> {
     const startedAt = performance.now();
@@ -84,6 +89,19 @@ export class ReplayEngine {
         lastError = error;
         if (attempt < maxAttempts && step.retry) await delay(step.retry.delayMs);
       }
+    }
+    if (this.handoff) {
+      await this.handoff.requestIntervention({
+        capabilityName: artifact.capability.name,
+        stepId: step.id,
+        reason: messageOf(lastError)
+      });
+      const currentUrl = (await this.surface.observe()).url;
+      const navigationUrl = step.action === "navigate" ? bind(step.url, artifact, inputs) : undefined;
+      await this.policy.authorize(step, currentUrl, navigationUrl);
+      await this.execute(step, artifact, inputs, outputs);
+      if (step.checkpoint) await this.verify(step.checkpoint, artifact, inputs);
+      return;
     }
     throw lastError;
   }
