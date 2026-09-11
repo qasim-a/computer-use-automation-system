@@ -38,6 +38,10 @@ const commonStep = {
   id: identifier,
   description: z.string().min(1),
   risk: z.enum(["read_only", "reversible", "irreversible"]).optional(),
+  retry: z.object({
+    maxAttempts: z.number().int().min(2).max(5),
+    delayMs: z.number().int().nonnegative().max(5_000)
+  }).optional(),
   timeoutMs: z.number().int().positive().max(60_000).default(10_000),
   checkpoint: checkpointSchema.optional()
 };
@@ -65,6 +69,11 @@ export const capabilityArtifactSchema = z.object({
     }))
   }),
   steps: z.array(stepSchema).min(1),
+  businessOutcomes: z.array(z.object({
+    code: identifier,
+    message: z.string().min(1),
+    checkpoint: checkpointSchema
+  })).default([]),
   success: checkpointSchema,
   metadata: z.object({ createdAt: z.string().datetime(), discoveryRunId: z.string().min(1) })
 }).superRefine((artifact, context) => {

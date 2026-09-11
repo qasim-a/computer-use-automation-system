@@ -12,6 +12,8 @@ Run `npm run evidence:live` to perform one bounded Claude discovery and a model-
 
 Every discovery and replay action passes through a declarative policy that allowlists action types, origins, and routes. Steps are classified as read-only, reversible, or irreversible; the irreversible class cannot run without an explicit approval provider.
 
+Replay distinguishes successful outputs, declared business outcomes, and hard failures. Individual steps may opt into a small fixed retry budget for known recoverable conditions; retries repeat the same recorded action and never invoke a model.
+
 ## Run locally
 
 ```bash

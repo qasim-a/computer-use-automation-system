@@ -75,3 +75,27 @@ test("policy rejection prevents replay from performing the navigation", async ()
   if (result.status === "failure") assert.match(result.error.message, /Origin is not allowed/);
   assert.equal(navigations, 0);
 });
+
+test("returns member-not-found as a business outcome rather than a crash", async () => {
+  const surface = await PlaywrightWebSurface.launch();
+  try {
+    const result = await new ReplayEngine(surface).run(artifact, { member_id: "00000" });
+    assert.equal(result.status, "business_outcome");
+    if (result.status === "business_outcome") assert.equal(result.outcome, "member_not_found");
+  } finally {
+    await surface.close();
+  }
+});
+
+test("recovers from a declared transient failure with a bounded retry", async () => {
+  const transientArtifact = structuredClone(artifact);
+  transientArtifact.capability.target.entrypoint = `${origin}/members?scenario=transient`;
+  const surface = await PlaywrightWebSurface.launch();
+  try {
+    const result = await new ReplayEngine(surface).run(transientArtifact, { member_id: "67890" });
+    assert.equal(result.status, "success");
+    if (result.status === "success") assert.deepEqual(result.outputs, { current_balance: "$912.04" });
+  } finally {
+    await surface.close();
+  }
+});

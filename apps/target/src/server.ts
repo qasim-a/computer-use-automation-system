@@ -12,26 +12,38 @@ button,a.button{display:inline-block;background:#315b86;color:#fff;border:0;padd
 .notice{padding:10px;border:1px solid #b42318;background:#fef3f2;color:#912018}.muted{color:#667085}
 </style></head><body><div class="shell"><div class="bar">Northstar Core Banking — Member Service</div><div class="content">${body}</div></div></body></html>`;
 
-const searchPage = (message = "") => html(`
+const searchPage = (message = "", memberId = "", scenario = "") => html(`
   <p class="muted">Internal servicing console</p>${message}
   <form method="get" action="/members/search">
     <table><tr><td><label for="member-number">Member Number</label></td>
-    <td><input id="member-number" name="memberId" inputmode="numeric" autocomplete="off"></td>
+    <td><input id="member-number" name="memberId" value="${memberId}" inputmode="numeric" autocomplete="off"></td>
     <td><button type="submit">Search</button></td></tr></table>
+    ${scenario ? `<input type="hidden" name="scenario" value="${scenario}">` : ""}
   </form>`);
 
-export function requestHandler(request: IncomingMessage, response: ServerResponse): void {
+export function createRequestHandler() {
+  const transientAttempts = new Map<string, number>();
+  return function requestHandler(request: IncomingMessage, response: ServerResponse): void {
   const url = new URL(request.url ?? "/", "http://localhost");
   response.setHeader("content-type", "text/html; charset=utf-8");
 
   if (url.pathname === "/" || url.pathname === "/members") {
-    response.end(searchPage());
+    response.end(searchPage("", "", url.searchParams.get("scenario") ?? ""));
     return;
   }
 
   if (url.pathname === "/members/search") {
     const memberId = url.searchParams.get("memberId")?.trim() ?? "";
     const scenario = url.searchParams.get("scenario");
+    if (scenario === "transient") {
+      const attempts = transientAttempts.get(memberId) ?? 0;
+      transientAttempts.set(memberId, attempts + 1);
+      if (attempts === 0) {
+        response.statusCode = 503;
+        response.end(searchPage('<div class="notice" role="alert">Temporary host error. Retry the search.</div>', memberId, scenario));
+        return;
+      }
+    }
     if (scenario === "timeout") {
       response.statusCode = 503;
       response.setHeader("retry-after", "1");
@@ -46,7 +58,7 @@ export function requestHandler(request: IncomingMessage, response: ServerRespons
     const member = findMember(memberId);
     if (!member) {
       response.statusCode = 404;
-      response.end(searchPage('<div class="notice" role="alert">No member found for that number.</div>'));
+      response.end(searchPage('<div class="notice" role="alert">No member found for that number.</div>', memberId, scenario ?? ""));
       return;
     }
     response.end(html(`<h1>Member Summary</h1><table aria-label="Member summary">
@@ -66,10 +78,13 @@ export function requestHandler(request: IncomingMessage, response: ServerRespons
 
   response.statusCode = 404;
   response.end(html('<div class="notice" role="alert">Page not found.</div>'));
+  };
 }
 
+export const requestHandler = createRequestHandler();
+
 export function startTargetServer(port = 4173) {
-  const server = createServer(requestHandler);
+  const server = createServer(createRequestHandler());
   return new Promise<typeof server>((resolve) => server.listen(port, "127.0.0.1", () => resolve(server)));
 }
 

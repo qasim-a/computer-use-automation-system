@@ -35,3 +35,11 @@ test("permission and timeout scenarios are injectable", async () => {
   assert.equal(timeout.status, 503);
   assert.equal(timeout.headers.get("retry-after"), "1");
 });
+
+test("transient scenario fails once and then recovers", async () => {
+  const first = await fetch(`${origin}/members/search?memberId=67890&scenario=transient`);
+  assert.equal(first.status, 503);
+  const second = await fetch(`${origin}/members/search?memberId=67890&scenario=transient`);
+  assert.equal(second.status, 200);
+  assert.match(await second.text(), /Member Summary/);
+});

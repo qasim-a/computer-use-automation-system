@@ -32,11 +32,23 @@ export class ReplayEngine {
     try {
       for (const step of artifact.steps) {
         activeStep = step;
-        const currentUrl = (await this.surface.observe()).url;
-        const navigationUrl = step.action === "navigate" ? bind(step.url, artifact, inputs) : undefined;
-        await this.policy.authorize(step, currentUrl, navigationUrl);
-        await this.execute(step, artifact, inputs, outputs);
-        if (step.checkpoint) await this.verify(step.checkpoint, artifact, inputs);
+        try {
+          await this.executeWithRetry(step, artifact, inputs, outputs);
+        } catch (error) {
+          const outcome = await this.detectBusinessOutcome(artifact, inputs);
+          if (outcome) {
+            return replayResultSchema.parse({
+              runId,
+              capabilityName: artifact.capability.name,
+              capabilityVersion: artifact.capability.version,
+              durationMs: performance.now() - startedAt,
+              status: "business_outcome",
+              outcome: outcome.code,
+              message: outcome.message
+            });
+          }
+          throw error;
+        }
       }
       await this.verify(artifact.success, artifact, inputs);
       return replayResultSchema.parse({
@@ -50,6 +62,42 @@ export class ReplayEngine {
     } catch (error) {
       return this.failure(runId, "step_failed", messageOf(error), startedAt, artifact, error, activeStep?.id);
     }
+  }
+
+  private async executeWithRetry(
+    step: CapabilityStep,
+    artifact: CapabilityArtifact,
+    inputs: Record<string, unknown>,
+    outputs: Record<string, unknown>
+  ): Promise<void> {
+    const maxAttempts = step.retry?.maxAttempts ?? 1;
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const currentUrl = (await this.surface.observe()).url;
+        const navigationUrl = step.action === "navigate" ? bind(step.url, artifact, inputs) : undefined;
+        await this.policy.authorize(step, currentUrl, navigationUrl);
+        await this.execute(step, artifact, inputs, outputs);
+        if (step.checkpoint) await this.verify(step.checkpoint, artifact, inputs);
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxAttempts && step.retry) await delay(step.retry.delayMs);
+      }
+    }
+    throw lastError;
+  }
+
+  private async detectBusinessOutcome(artifact: CapabilityArtifact, inputs: Record<string, unknown>) {
+    for (const outcome of artifact.businessOutcomes) {
+      try {
+        await this.verify(outcome.checkpoint, artifact, inputs);
+        return outcome;
+      } catch {
+        // A non-match is expected while checking alternative declared outcomes.
+      }
+    }
+    return undefined;
   }
 
   private async execute(
@@ -152,4 +200,8 @@ function validateInputs(artifact: CapabilityArtifact, inputs: Record<string, unk
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }

@@ -36,7 +36,7 @@
       "description": "Open member search",
       "url": "${target.entrypoint}",
       "timeoutMs": 10000,
-      "checkpoint": { "kind": "url", "matches": "/members$" }
+      "checkpoint": { "kind": "url", "matches": "/members(?:\\?.*)?$" }
     },
     {
       "id": "enter_member_id",
@@ -58,6 +58,7 @@
       "action": "click",
       "description": "Submit member search",
       "timeoutMs": 10000,
+      "retry": { "maxAttempts": 2, "delayMs": 50 },
       "target": {
         "description": "Search button",
         "locators": [{ "strategy": "role", "role": "button", "value": "Search", "exact": true }],
@@ -96,6 +97,21 @@
           { "strategy": "text", "value": "$4,281.36", "exact": true }
         ],
         "requireUnique": true
+      }
+    }
+  ],
+  "businessOutcomes": [
+    {
+      "code": "member_not_found",
+      "message": "No member exists for the supplied member number",
+      "checkpoint": {
+        "kind": "text",
+        "target": {
+          "description": "Member lookup alert",
+          "locators": [{ "strategy": "css", "value": "[role=alert]", "exact": true }],
+          "requireUnique": true
+        },
+        "matches": "No member found"
       }
     }
   ],
