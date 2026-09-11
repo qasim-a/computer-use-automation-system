@@ -116,7 +116,8 @@ export class HandoffController {
       );
     });
     try {
-      await this.options.router?.route(request);
+      const routing = this.options.router?.route(request) ?? Promise.resolve();
+      await Promise.race([routing, resolution.then(() => undefined)]);
       return await resolution;
     } finally {
       if (timeout) clearTimeout(timeout);

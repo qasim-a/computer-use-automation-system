@@ -71,7 +71,10 @@ test("handoff can time out or be cancelled without losing ownership state", asyn
     stepId: "search_member", failure: { code: "locator_failed", message: "Missing control", attempts: 1 }
   };
   try {
-    const timed = new HandoffController(surface, { timeoutMs: 10 }).requestIntervention(context);
+    const timed = new HandoffController(surface, {
+      timeoutMs: 10,
+      router: { route: async () => await new Promise<void>(() => {}) }
+    }).requestIntervention(context);
     await assert.rejects(timed, HandoffTimeoutError);
 
     const handoff = new HandoffController(surface);
